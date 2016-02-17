@@ -1,0 +1,2 @@
+# rpc
+GO RPC package
