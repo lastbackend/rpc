@@ -10,9 +10,16 @@ import (
 )
 
 func (r *RPC) listen() {
+	var attempt int
+
 	for {
 		select {
 		case <-r.connect:
+			if attempt >= 60 {
+				log.Println("attempt limit reached: 5")
+				return
+			}
+			attempt++
 			log.Printf("RPC: %s connect", r.name)
 			go r.dial()
 
@@ -38,6 +45,7 @@ func (r *RPC) dial() {
 		r.uri = fmt.Sprintf("amqp://%s:%s@%s:%s/", AMQP_USER, AMQP_PASS, AMQP_HOST, AMQP_PORT)
 	}
 
+	log.Println("RPC: Dial to:", r.uri)
 	r.conn, err = amqp.Dial(r.uri)
 
 	if err != nil {
@@ -51,50 +59,38 @@ func (r *RPC) dial() {
 		r.connect <- true
 	}()
 
-	log.Println("RPC: connect consumer and proxier")
+	rpc.connected <- true
+	r.subscribe()
 
 }
 
-func (r *RPC) call (s Sender, p Proxy, d Receiver, data []byte) error {
-	return r.publish(true, s, p, d, data)
+func (r *RPC) call (s Sender, d Destination, p Receiver, data []byte) error {
+	return r.publish(true, s, d, p, data)
 }
 
-func (r *RPC) cast (s Sender, p Proxy, d Receiver, data []byte) error {
-	return r.publish(false, s, p, d, data)
+func (r *RPC) cast (s Sender, d Destination, p Receiver, data []byte) error {
+	return r.publish(false, s, d, p, data)
 }
 
-func (r *RPC) publish (call bool, s Sender, p Proxy, d Receiver, data []byte) error {
+func (r *RPC) publish (call bool, s Sender, d Destination, p Receiver, data []byte) error {
 
-	var body []byte
-	var hash [256]byte
+	body := r.encode(s, d, p, data)
 
-	var token [32]byte
-	copy(token[:], r.token)
-
-	copy(hash[0:32], token[:])
-	copy(hash[32:84], s.Sign()[:])
-	copy(hash[84:152], p.Sign()[:])
-	copy(hash[152:220], d.Sign()[:])
-
-
-	body = append(body, hash[:]...)
-	body = append(body, data[:]...)
-
-	log.Printf("PRC: call %s:%s, send: %dB body (%s)", p.name, p.uuid, len(body), body)
+	log.Printf("PRC: publish %s:%s, send: %dB body (%s)", d.name, d.uuid, len(body), body)
 
 	channel, err := r.conn.Channel()
 	if err != nil {
 		return fmt.Errorf("Channel: %s", err)
 	}
 
-	exchange := fmt.Sprintf("%s:%s", p.name, "direct")
+	exchange := fmt.Sprintf("%s:%s", d.name, "direct")
 	if !call {
-		exchange = fmt.Sprintf("%s:%s", p.name, "topic")
+		exchange = fmt.Sprintf("%s:%s", d.name, "topic")
 	}
 
-	bind     := p.uuid
+	bind     := d.uuid
 	if bind == "" {
-		bind = p.name
+		bind = d.name
 	}
 
 	if err := channel.Publish(exchange, bind, false, false, amqp.Publishing{
@@ -223,7 +219,12 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 		go func(m amqp.Delivery) {
 
 			// validate token
-			if r.token != string(m.Body[0:32]) {
+			token := string(m.Body[0:32])
+			token  = token[:strings.Index(string(token), "\x00")]
+
+			log.Println(token, r.token)
+
+			if r.token != token {
 				log.Println("RPC: token verification failed")
 				m.Ack(false)
 			}
@@ -236,29 +237,27 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 			s.name = s.name[:strings.Index(string(s.name), "\x00")]
 
 			// parse destination information
-			p := Proxy{}
-			p.name = string(d.Body[84:100])
-			p.uuid = string(d.Body[100:136])
-			p.handler = string(d.Body[136:152])
+			e := Destination{}
+			e.name = string(d.Body[84:100])
+			e.uuid = string(d.Body[100:136])
+			e.handler = string(d.Body[136:152])
+
+			e.name = e.name[:strings.Index(string(e.name), "\x00")]
+			e.handler = e.handler[:strings.Index(string(e.handler), "\x00")]
+
+			// parse receiver information
+			p := Receiver{}
+			p.name = string(m.Body[152:168])
+			p.uuid = string(m.Body[168:204])
+			p.handler = string(m.Body[204:220])
 
 			p.name = p.name[:strings.Index(string(p.name), "\x00")]
 			p.handler = p.handler[:strings.Index(string(p.handler), "\x00")]
 
-			// parse receiver information
-			d := Receiver{}
-			d.name = string(m.Body[156:168])
-			d.uuid = string(m.Body[168:204])
-			d.handler = string(m.Body[204:220])
+			data := m.Body[256:len(m.Body)]
 
-			d.name = d.name[:strings.Index(string(d.name), "\x00")]
-			d.handler = d.handler[:strings.Index(string(d.handler), "\x00")]
-
-			data := m.Body[255:len(m.Body)]
-
-			log.Println("data:", string(data))
-
-			if p.name != r.name {
-				log.Println("PRC: send to upstream")
+			if p.name != "" {
+				log.Println("PRC: need upstream")
 				_, ok := r.upstreams[p.handler]
 
 				if !ok {
@@ -267,13 +266,31 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 					return
 				}
 
-				err := r.upstreams[p.handler](s, d, data)
+				err := r.upstreams[p.handler](s, e, data)
 				if err != nil {
 					log.Println("RPC: Proxy error:", err)
 				}
+
 				m.Ack(false)
+				return
 			}
 
+			log.Println("PRC: send to handler")
+
+			_, ok := r.handlers[e.handler]
+
+			if !ok {
+				log.Println("RPC: handler not found", e.handler)
+				m.Ack(false)
+				return
+			}
+
+			err := r.handlers[e.handler](s, data)
+			if err != nil {
+				log.Println("RPC: Proxy error:", err)
+			}
+
+			m.Ack(false)
 		}(d)
 	}
 

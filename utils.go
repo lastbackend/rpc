@@ -1,7 +1,7 @@
 package rpc
 
 func (s *Sender) Sign() []byte {
-	var app [32]byte
+	var app [16]byte
 	var tag [36]byte
 
 	copy(app[:], s.name)
@@ -15,7 +15,7 @@ func (s *Sender) Sign() []byte {
 	return body
 }
 
-func (p *Proxy) Sign () []byte {
+func (p *Receiver) Sign () []byte {
 
 	var body []byte
 
@@ -34,7 +34,7 @@ func (p *Proxy) Sign () []byte {
 	return body
 }
 
-func (r *Receiver) Sign () []byte {
+func (r *Destination) Sign () []byte {
 
 	var body []byte
 
@@ -49,6 +49,25 @@ func (r *Receiver) Sign () []byte {
 	body = append(body, name[:]...)
 	body = append(body, uuid[:]...)
 	body = append(body, hander[:]...)
+
+	return body
+}
+
+func (r *RPC) encode ( s Sender, d Destination, p Receiver, data []byte) []byte {
+	var body []byte
+	var hash [256]byte
+
+	var token [32]byte
+	copy(token[:], r.token)
+
+	copy(hash[0:32], token[:])
+	copy(hash[32:84], s.Sign()[:])
+	copy(hash[84:152], d.Sign()[:])
+	copy(hash[152:220], p.Sign()[:])
+
+
+	body = append(body, hash[:]...)
+	body = append(body, data[:]...)
 
 	return body
 }

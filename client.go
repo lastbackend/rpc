@@ -6,7 +6,7 @@ import (
 )
 
 // Call - send message with delivery guarantee
-func (r *RPC) Call (d Receiver, message interface{}) error {
+func (r *RPC) Call (d Destination, message interface{}) error {
 
 	msg, err := json.Marshal(message)
 	if err != nil {
@@ -14,7 +14,7 @@ func (r *RPC) Call (d Receiver, message interface{}) error {
 		return err
 	}
 
-	err = r.call(Sender{r.name, r.uuid}, Proxy{d.name, d.uuid, d.handler}, d, msg);
+	err = r.call(Sender{r.name, r.uuid}, d, Receiver{}, msg);
 	if err != nil {
 		return err
 	}
@@ -23,7 +23,7 @@ func (r *RPC) Call (d Receiver, message interface{}) error {
 }
 
 // Cast - send message without delivery guarantee
-func (r *RPC) Cast (d Receiver, message interface{}) error {
+func (r *RPC) Cast (d Destination, message interface{}) error {
 
 	msg, err := json.Marshal(message)
 	if err != nil {
@@ -31,7 +31,7 @@ func (r *RPC) Cast (d Receiver, message interface{}) error {
 		return err
 	}
 
-	err = r.cast(Sender{r.name, r.uuid}, Proxy{d.name, d.uuid, d.handler}, d, msg);
+	err = r.cast(Sender{r.name, r.uuid}, d, Receiver{}, msg);
 	if err != nil {
 		return err
 	}
@@ -40,8 +40,8 @@ func (r *RPC) Cast (d Receiver, message interface{}) error {
 }
 
 // CallBinary - send binary message with delivery guarantee
-func (r *RPC) CallBinary (d Receiver, message []byte) error {
-	err := r.call(Sender{r.name, r.uuid}, Proxy{d.name, d.uuid, d.handler}, d, message);
+func (r *RPC) CallBinary (d Destination, message []byte) error {
+	err := r.call(Sender{r.name, r.uuid}, d, Receiver{}, message);
 	if err != nil {
 		return err
 	}
@@ -50,8 +50,8 @@ func (r *RPC) CallBinary (d Receiver, message []byte) error {
 }
 
 // CastBinary - send binary message without delivery guarantee
-func (r *RPC) CastBinary (d Receiver, message []byte) error {
-	err := r.cast(Sender{r.name, r.uuid}, Proxy{d.name, d.uuid, d.handler}, d, message);
+func (r *RPC) CastBinary (d Destination, message []byte) error {
+	err := r.cast(Sender{r.name, r.uuid}, d, Receiver{}, message);
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func (r *RPC) CastBinary (d Receiver, message []byte) error {
 }
 
 // CallSigned - send signed message with delivery guarantee
-func (r *RPC) CallSigned (s Sender, d Receiver, message interface{}) error {
+func (r *RPC) CallSigned (s Sender, d Destination, message interface{}) error {
 
 	msg, err := json.Marshal(message)
 	if err != nil {
@@ -68,7 +68,7 @@ func (r *RPC) CallSigned (s Sender, d Receiver, message interface{}) error {
 		return err
 	}
 
-	err = r.call(s, Proxy{d.name, d.uuid, d.handler,}, d, msg);
+	err = r.call(s, d, Receiver{}, msg);
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (r *RPC) CallSigned (s Sender, d Receiver, message interface{}) error {
 }
 
 // CastSigned - send signed message without delivery guarantee
-func (r *RPC) CastSigned (s Sender, d Receiver, message interface{}) error {
+func (r *RPC) CastSigned (s Sender, d Destination, message interface{}) error {
 
 	msg, err := json.Marshal(message)
 	if err != nil {
@@ -85,7 +85,7 @@ func (r *RPC) CastSigned (s Sender, d Receiver, message interface{}) error {
 		return err
 	}
 
-	err = r.cast(s, Proxy{d.name, d.uuid, d.handler,}, d, msg);
+	err = r.cast(s, d, Receiver{}, msg);
 	if err != nil {
 		return err
 	}
@@ -94,9 +94,9 @@ func (r *RPC) CastSigned (s Sender, d Receiver, message interface{}) error {
 }
 
 // CallSignedBinary - send signed binary message with delivery guarantee
-func (r *RPC) CallSignedBinary (s Sender, d Receiver, message []byte) error {
+func (r *RPC) CallSignedBinary (s Sender, d Destination, message []byte) error {
 
-	err := r.call(s, Proxy{d.name, d.uuid, d.handler,}, d, message);
+	err := r.call(s, d, Receiver{}, message);
 	if err != nil {
 		return err
 	}
@@ -105,9 +105,9 @@ func (r *RPC) CallSignedBinary (s Sender, d Receiver, message []byte) error {
 }
 
 // CastSignedBinary - send signed binary message without delivery guarantee
-func (r *RPC) CastSignedBinary (s Sender, d Receiver, message []byte) error {
+func (r *RPC) CastSignedBinary (s Sender, d Destination, message []byte) error {
 
-	err := r.cast(s, Proxy{d.name, d.uuid, d.handler,}, d, message);
+	err := r.cast(s, d, Receiver{}, message);
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (r *RPC) CastSignedBinary (s Sender, d Receiver, message []byte) error {
 
 // Proxy send message methods
 // ProxyCall - send message throw another application with delivery guarantee
-func (r *RPC) ProxyCall (p Proxy, d Receiver, message interface{}) error {
+func (r *RPC) ProxyCall (d Destination, p Receiver, message interface{}) error {
 
 	msg, err := json.Marshal(message)
 	if err != nil {
@@ -125,7 +125,7 @@ func (r *RPC) ProxyCall (p Proxy, d Receiver, message interface{}) error {
 		return err
 	}
 
-	err = r.call(Sender{r.name, r.uuid}, p, d, msg);
+	err = r.call(Sender{r.name, r.uuid}, d, p, msg);
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (r *RPC) ProxyCall (p Proxy, d Receiver, message interface{}) error {
 }
 
 // ProxyCast - send message throw another application without delivery guarantee
-func (r *RPC) ProxyCast (p Proxy, d Receiver, message interface{}) error {
+func (r *RPC) ProxyCast (d Destination, p Receiver, message interface{}) error {
 
 	msg, err := json.Marshal(message)
 	if err != nil {
@@ -142,7 +142,7 @@ func (r *RPC) ProxyCast (p Proxy, d Receiver, message interface{}) error {
 		return err
 	}
 
-	err = r.cast(Sender{r.name, r.uuid}, p, d, msg);
+	err = r.cast(Sender{r.name, r.uuid}, d, p, msg);
 	if err != nil {
 		return err
 	}
@@ -151,9 +151,9 @@ func (r *RPC) ProxyCast (p Proxy, d Receiver, message interface{}) error {
 }
 
 // ProxyCallBinary - send binary message throw another application with delivery guarantee
-func (r *RPC) ProxyCallBinary (p Proxy, d Receiver, message []byte) error {
+func (r *RPC) ProxyCallBinary (d Destination, p Receiver, message []byte) error {
 
-	err := r.call(Sender{r.name, r.uuid}, p, d, message);
+	err := r.call(Sender{r.name, r.uuid}, d, p, message);
 	if err != nil {
 		return err
 	}
@@ -162,9 +162,9 @@ func (r *RPC) ProxyCallBinary (p Proxy, d Receiver, message []byte) error {
 }
 
 // ProxyCastBinary - send message throw another application without delivery guarantee
-func (r *RPC) ProxyCastBinary (p Proxy, d Receiver, message []byte) error {
+func (r *RPC) ProxyCastBinary (d Destination, p Receiver, message []byte) error {
 
-	err := r.cast(Sender{r.name, r.uuid}, p, d, message);
+	err := r.cast(Sender{r.name, r.uuid}, d, p, message);
 	if err != nil {
 		return err
 	}

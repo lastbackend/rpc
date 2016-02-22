@@ -13,6 +13,8 @@ type RPC struct {
 
 	connect   chan bool
 	reconnect chan bool
+	connected chan bool
+	shutdown  chan bool
 	error     chan error
 
 	handlers  map[string]Handler
@@ -24,15 +26,13 @@ type Sender struct {
 	uuid  string
 }
 
-type Receiver struct {
+type Destination struct {
 	name    string
 	uuid    string
 	handler string
-	any   bool
-	all   bool
 }
 
-type Proxy struct {
+type Receiver struct {
 	name    string
 	uuid    string
 	handler string
@@ -40,4 +40,4 @@ type Proxy struct {
 
 type Handler  func (Sender, []byte) error
 
-type Upstream func (Sender, Receiver, []byte) error
+type Upstream func (Sender, Destination, []byte) error

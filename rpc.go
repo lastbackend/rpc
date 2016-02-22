@@ -21,7 +21,7 @@ You should start with your app registering:
 	}
 
 Setup handler and upstream examples:
-	r := rpc.RegisterAPP()
+	r := rpc.Register()
 	r.SetHandler("handler",   SomeHandler)
 	r.SetUpstream("upstream", SomeUpstream)
 
@@ -52,7 +52,10 @@ func Register (name string, uuid string, token string) (RPC, error) {
 
 	rpc.connect   = make (chan bool)
 	rpc.reconnect = make (chan bool)
+	rpc.connected = make (chan bool)
+
 	rpc.error     = make (chan error)
+	rpc.shutdown  = make (chan bool)
 
 	rpc.handlers  = make (map[string]Handler)
 	rpc.upstreams = make (map[string]Upstream)
@@ -62,8 +65,9 @@ func Register (name string, uuid string, token string) (RPC, error) {
 }
 
 // SetURI - set URI connection
-func SetURI (uri string) {
+func SetURI (uri string) RPC {
 	rpc.uri = uri
+	return rpc
 }
 
 // Start listening for incoming messages
