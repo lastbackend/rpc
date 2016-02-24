@@ -83,6 +83,7 @@ func TestReceiverSign (t *testing.T) {
 func TestEncode (t *testing.T) {
 
 	r := RPC{}
+	r.token = "token"
 
 	s := Sender{
 		name: "demo",
@@ -152,6 +153,9 @@ func TestEncode (t *testing.T) {
 		123, 125,
 
 	}
+
+	t.Log(body)
+	t.Log(data)
 
 	if string(body) != string(data)  {
 		t.Error("Failed signing proxy: expected %x, got %x", data, body)

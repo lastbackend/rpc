@@ -20,7 +20,10 @@ func TestRegister(t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer r.shutdown()
+	defer func (){
+		r.cleanup()
+		r.shutdown()
+	}()
 
 	if r.name != name {
 		t.Error("Expected name: %s got %s", name, r.name)
@@ -41,6 +44,9 @@ func TestRegister(t *testing.T) {
 	}
 
 	r.Listen()
+	select {
+	case <- r.connected:
+		return
+	}
 
-	<- r.connected
 }

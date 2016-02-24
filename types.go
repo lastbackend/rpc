@@ -24,8 +24,7 @@ type RPC struct {
 	exchanges exchanges
 	queues    queues
 
-
-
+	online bool
 }
 
 type channels struct {

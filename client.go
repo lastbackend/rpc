@@ -182,8 +182,3 @@ func (r *RPC) SetHandler(h string, f Handler) {
 func (r *RPC) SetUpstream(u string, f Upstream) {
 	r.upstreams[u]=f
 }
-
-// Shutdown RPC instance
-func (r *RPC) Shutdown () {
-
-}

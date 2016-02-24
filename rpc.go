@@ -57,8 +57,6 @@ func Register (name string, uuid string, token string) (RPC, error) {
 
 	rpc.handlers  = make (map[string]Handler)
 	rpc.upstreams = make (map[string]Upstream)
-
-	go rpc.listen()
 	return rpc, nil
 }
 
@@ -69,5 +67,12 @@ func (r *RPC) SetURI (uri string) {
 
 // Start listening for incoming messages
 func (r *RPC) Listen () {
+	go r.listen()
+	r.online = true
 	r.connect <- true
+}
+
+func (r *RPC) Shutdown() {
+	r.online = false
+	r.shutdown()
 }

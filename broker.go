@@ -14,7 +14,13 @@ func (r *RPC) listen() {
 
 	for {
 		select {
+		case <- r.done :
+			return
 		case <-r.connect:
+			if r.online == false {
+				log.Println("Can not start listening while RPC should be offline")
+				return
+			}
 			if attempt >= 60 {
 				log.Println("attempt limit reached: 5")
 				return
@@ -24,18 +30,21 @@ func (r *RPC) listen() {
 			go r.dial()
 
 		case <-r.reconnect:
+			if r.online == false {
+				log.Println("Can not start listening while RPC should be offline")
+				return
+			}
 			log.Printf("RPC: %s reconnect", r.name)
 			timer := time.NewTimer(time.Second)
 			<-timer.C
 			go r.dial()
 			timer.Stop()
-		case <- r.done :
-			return
 		}
 	}
 }
 
 func (r *RPC) dial() {
+	log.Println("RPC: DIAL:", r.name)
 	var err error
 
 	if r.uri == "" {
@@ -57,13 +66,16 @@ func (r *RPC) dial() {
 	}
 
 	go func() {
-		log.Printf("RPC: Closing: %s", <-r.conn.NotifyClose(make(chan *amqp.Error)))
+		if r.online == false {
+			return
+		}
+		log.Printf("RPC: Closing: %s, %s", r.name, <-r.conn.NotifyClose(make(chan *amqp.Error)))
 		r.connect <- true
 	}()
 
-	r.connected <- true
-	r.subscribe()
 
+	r.subscribe()
+	r.connected <- true
 }
 
 func (r *RPC) call (s Sender, d Destination, p Receiver, data []byte) error {
@@ -174,11 +186,11 @@ func (r *RPC) subscribe() error {
 	}
 
 	// create bindings for topic messages
-	if err = r.channels.direct.QueueBind(r.queues.topic, r.uuid, r.exchanges.direct, false, nil); err != nil {
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid, r.exchanges.topic, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = r.channels.direct.QueueBind(r.queues.topic, r.name, r.exchanges.direct, false, nil); err != nil {
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.name, r.exchanges.topic, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
@@ -202,87 +214,114 @@ func (r *RPC) subscribe() error {
 func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 	for d := range msgs {
 
-		go func(m amqp.Delivery) {
+		log.Println("RPC: message from:", d.DeliveryTag, d.ConsumerTag, string(d.Body))
+		// validate token
+		token := string(d.Body[0:32])
+		token = token[:strings.Index(string(token), "\x00")]
 
-			log.Println("receiver message from:", m.DeliveryTag, m.ConsumerTag, string(m.Body))
-			// validate token
-			token := string(m.Body[0:32])
-			token  = token[:strings.Index(string(token), "\x00")]
+		if r.token != token {
+			log.Println("RPC: token verification failed")
+			d.Ack(false)
+		}
 
-			log.Println(token, r.token)
+		// parse sender information
+		s := Sender{}
+		s.name = string(d.Body[32:48])
+		s.uuid = string(d.Body[48:84])
 
-			if r.token != token {
-				log.Println("RPC: token verification failed")
-				m.Ack(false)
+		s.name = s.name[:strings.Index(string(s.name), "\x00")]
+
+		// parse destination information
+		e := Destination{}
+		e.name = string(d.Body[84:100])
+		e.uuid = string(d.Body[100:136])
+		e.handler = string(d.Body[136:152])
+
+		e.name = e.name[:strings.Index(string(e.name), "\x00")]
+		e.handler = e.handler[:strings.Index(string(e.handler), "\x00")]
+
+		// parse receiver information
+		p := Receiver{}
+		p.name = string(d.Body[152:168])
+		p.uuid = string(d.Body[168:204])
+		p.handler = string(d.Body[204:220])
+
+		p.name = p.name[:strings.Index(string(p.name), "\x00")]
+		p.handler = p.handler[:strings.Index(string(p.handler), "\x00")]
+
+		data := d.Body[256:len(d.Body)]
+
+		if p.name != "" {
+			log.Println("PRC: need upstream", d.ConsumerTag)
+			_, ok := r.upstreams[p.handler]
+
+			if !ok {
+				log.Println("RPC: upstream not found", p.handler)
+				d.Ack(false)
+				continue
 			}
 
-			// parse sender information
-			s := Sender{}
-			s.name = string(d.Body[32:48])
-			s.uuid = string(d.Body[48:84])
-
-			s.name = s.name[:strings.Index(string(s.name), "\x00")]
-
-			// parse destination information
-			e := Destination{}
-			e.name = string(d.Body[84:100])
-			e.uuid = string(d.Body[100:136])
-			e.handler = string(d.Body[136:152])
-
-			e.name = e.name[:strings.Index(string(e.name), "\x00")]
-			e.handler = e.handler[:strings.Index(string(e.handler), "\x00")]
-
-			// parse receiver information
-			p := Receiver{}
-			p.name = string(m.Body[152:168])
-			p.uuid = string(m.Body[168:204])
-			p.handler = string(m.Body[204:220])
-
-			p.name = p.name[:strings.Index(string(p.name), "\x00")]
-			p.handler = p.handler[:strings.Index(string(p.handler), "\x00")]
-
-			data := m.Body[256:len(m.Body)]
-
-			if p.name != "" {
-				log.Println("PRC: need upstream", m.ConsumerTag)
-				_, ok := r.upstreams[p.handler]
-
-				if !ok {
-					log.Println("RPC: upstream not found", p.handler)
-					m.Ack(false)
-				}
-
+			go func() {
+				log.Println("Call upstream")
 				err := r.upstreams[p.handler](s, e, data)
+				log.Println("Upstream called")
+
 				if err != nil {
 					log.Println("RPC: Proxy error:", err)
 				}
 
-				m.Ack(false)
-				return
+				d.Ack(false)
+			}()
+		}
+
+		log.Println("PRC: send to handler", d.ConsumerTag)
+		_, ok := r.handlers[e.handler]
+		if !ok {
+			log.Println("RPC: handler not found", e.handler)
+			d.Ack(false)
+			continue
+		}
+
+		go func() {
+			log.Println("call handler")
+			err := r.handlers[e.handler](s, data)
+			log.Println("call executed")
+
+			if err != nil {
+				log.Println("RPC: Proxy error:", err)
 			}
 
-				log.Println("PRC: send to handler", m.ConsumerTag)
-
-				_, ok := r.handlers[e.handler]
-
-				if !ok {
-					log.Println("RPC: handler not found", e.handler)
-					m.Ack(false)
-					return
-				}
-
-				err := r.handlers[e.handler](s, data)
-				if err != nil {
-					log.Println("RPC: Proxy error:", err)
-				}
-
-				m.Ack(false)
-		}(d)
+			d.Ack(false)
+			log.Println("DONE:!!")
+		}()
 	}
 
 	fmt.Println("handle: deliveries channel closed")
 	r.done <- nil
 	return
+}
+
+func (r *RPC) cleanup() error{
+	var err error;
+	err = r.channels.direct.ExchangeDelete(r.exchanges.direct, false, true)
+	if err != nil {
+		log.Println("Exchange remove error", err)
+		return err
+	}
+
+	_, err = r.channels.direct.QueueDelete(r.queues.direct, false, false, true)
+	if err != nil {
+		log.Println("Queue remove error", err)
+		return err
+	}
+
+	err = r.channels.topic.ExchangeDelete(r.exchanges.topic, false, true)
+	if err != nil {
+		log.Println("Exchange remove error", err)
+		return err
+	}
+
+	return nil
 }
 
 func (r *RPC) shutdown () error {
