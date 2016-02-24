@@ -98,13 +98,19 @@ func (r *RPC) publish (call bool, s Sender, d Destination, p Receiver, data []by
 	}
 
 	exchange := fmt.Sprintf("%s:%s", d.Name, "direct")
-	if !call {
+	if d.All {
 		exchange = fmt.Sprintf("%s:%s", d.Name, "topic")
 	}
 
 	bind     := d.UUID
 	if bind == "" {
 		bind = d.Name
+	}
+
+	if call {
+		bind += ":call"
+	} else {
+		bind += ":cast"
 	}
 
 	if err := channel.Publish(exchange, bind, false, false, amqp.Publishing{
@@ -176,21 +182,39 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Queue Declare: %s", err)
 	}
 
+
 	// create bindings for direct messages
-	if err = r.channels.direct.QueueBind(r.queues.direct, r.uuid, r.exchanges.direct, false, nil); err != nil {
+	if err = r.channels.direct.QueueBind(r.queues.direct, r.uuid+":call", r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = r.channels.direct.QueueBind(r.queues.direct, r.name, r.exchanges.direct, false, nil); err != nil {
+	if err = r.channels.direct.QueueBind(r.queues.direct, r.name+":call", r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
+
+	if err = r.channels.direct.QueueBind(r.queues.direct, r.uuid+":call", r.exchanges.topic, false, nil); err != nil {
+		return fmt.Errorf("Queue Bind: %s", err)
+	}
+
+	if err = r.channels.direct.QueueBind(r.queues.direct, r.name+":call", r.exchanges.topic, false, nil); err != nil {
+		return fmt.Errorf("Queue Bind: %s", err)
+	}
+
 
 	// create bindings for topic messages
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid, r.exchanges.topic, false, nil); err != nil {
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid+":cast", r.exchanges.topic, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.name, r.exchanges.topic, false, nil); err != nil {
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.name+":cast", r.exchanges.topic, false, nil); err != nil {
+		return fmt.Errorf("Queue Bind: %s", err)
+	}
+
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid+":cast", r.exchanges.direct, false, nil); err != nil {
+		return fmt.Errorf("Queue Bind: %s", err)
+	}
+
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.name+":cast", r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 

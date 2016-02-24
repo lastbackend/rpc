@@ -49,12 +49,14 @@ type Destination struct {
 	Name    string
 	UUID    string
 	Handler string
+	All     bool
 }
 
 type Receiver struct {
 	Name    string
 	UUID    string
 	Handler string
+	All     bool
 }
 
 type Handler  func (Sender, []byte) error
