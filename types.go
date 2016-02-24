@@ -41,20 +41,20 @@ type queues struct {
 }
 
 type Sender struct {
-	name string
-	uuid  string
+	Name string
+	UUID string
 }
 
 type Destination struct {
-	name    string
-	uuid    string
-	handler string
+	Name    string
+	UUID    string
+	Handler string
 }
 
 type Receiver struct {
-	name    string
-	uuid    string
-	handler string
+	Name    string
+	UUID    string
+	Handler string
 }
 
 type Handler  func (Sender, []byte) error

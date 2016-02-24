@@ -4,8 +4,8 @@ func (s *Sender) Sign() []byte {
 	var app [16]byte
 	var tag [36]byte
 
-	copy(app[:], s.name)
-	copy(tag[:], s.uuid)
+	copy(app[:], s.Name)
+	copy(tag[:], s.UUID)
 
 	var body []byte
 
@@ -23,9 +23,9 @@ func (p *Receiver) Sign () []byte {
 	var uuid [36]byte
 	var hander [16]byte
 
-	copy(name[:], p.name)
-	copy(uuid[:], p.uuid)
-	copy(hander[:], p.handler)
+	copy(name[:], p.Name)
+	copy(uuid[:], p.UUID)
+	copy(hander[:], p.Handler)
 
 	body = append(body, name[:]...)
 	body = append(body, uuid[:]...)
@@ -42,9 +42,9 @@ func (r *Destination) Sign () []byte {
 	var uuid [36]byte
 	var hander [16]byte
 
-	copy(name[:], r.name)
-	copy(uuid[:], r.uuid)
-	copy(hander[:], r.handler)
+	copy(name[:], r.Name)
+	copy(uuid[:], r.UUID)
+	copy(hander[:], r.Handler)
 
 	body = append(body, name[:]...)
 	body = append(body, uuid[:]...)

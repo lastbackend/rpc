@@ -35,9 +35,9 @@ func TestCallMessage (t *testing.T) {
 
 	end := make (chan bool)
 	d := Destination{
-		name: name,
-		uuid: uuid,
-		handler: "handler",
+		Name: name,
+		UUID: uuid,
+		Handler: "handler",
 	}
 
 	m := struct{ Name string }{"name",}
@@ -106,9 +106,9 @@ func TestCastMessage (t *testing.T) {
 
 	end := make (chan bool)
 	d := Destination{
-		name: name,
-		uuid: uuid,
-		handler: "handler",
+		Name: name,
+		UUID: uuid,
+		Handler: "handler",
 	}
 
 	m := struct{
@@ -182,9 +182,9 @@ func TestCallBinaryMessage (t *testing.T) {
 
 	end := make (chan bool)
 	d := Destination{
-		name: name,
-		uuid: uuid,
-		handler: "handler",
+		Name: name,
+		UUID: uuid,
+		Handler: "handler",
 	}
 
 	m := []byte{123,125}
@@ -246,9 +246,9 @@ func TestCastBinaryMessage (t *testing.T) {
 
 	end := make (chan bool)
 	d := Destination{
-		name: name,
-		uuid: uuid,
-		handler: "handler",
+		Name: name,
+		UUID: uuid,
+		Handler: "handler",
 	}
 
 	m := []byte{123,125}
@@ -310,15 +310,15 @@ func TestCallSignedMessage (t *testing.T) {
 
 	end := make (chan bool)
 	d := Destination{
-		name: name,
-		uuid: uuid,
-		handler: "handler",
+		Name: name,
+		UUID: uuid,
+		Handler: "handler",
 	}
 
 	m := struct{ Name string }{"name",}
 	so:= Sender{
-		name: "sender",
-		uuid: "suid",
+		Name: "sender",
+		UUID: "suid",
 	}
 
 	handler := func (s Sender, p []byte) error {
@@ -339,8 +339,8 @@ func TestCallSignedMessage (t *testing.T) {
 			t.Error("Received message validation failed: %x got %x", m, i)
 		}
 
-		if (s.name != so.name) {
-			t.Error("Received message validation failed: %x got %x", so.name, s.name)
+		if (s.Name != so.Name) {
+			t.Error("Received message validation failed: %x got %x", so.Name, s.Name)
 		}
 
 		end <- true
@@ -392,16 +392,16 @@ func TestCastSignedMessage (t *testing.T) {
 
 	end := make (chan bool)
 	d := Destination{
-		name: name,
-		uuid: uuid,
-		handler: "handler",
+		Name: name,
+		UUID: uuid,
+		Handler: "handler",
 	}
 
 
 	m := struct{ Name string }{"name",}
 	so:= Sender{
-		name: "sender",
-		uuid: "suid",
+		Name: "sender",
+		UUID: "suid",
 	}
 
 
@@ -422,8 +422,8 @@ func TestCastSignedMessage (t *testing.T) {
 		if (m.Name != i.Name) {
 			t.Error("Received message validation failed: %x got %x", m, i)
 		}
-		if (so.name != s.name) {
-			t.Error("Received message validation failed: %x got %x", so.name, s.name)
+		if (so.Name != s.Name) {
+			t.Error("Received message validation failed: %x got %x", so.Name, s.Name)
 		}
 
 		end <- true
@@ -474,15 +474,15 @@ func TestCallSignedBinaryMessage (t *testing.T) {
 
 	end := make (chan bool)
 	d := Destination{
-		name: name,
-		uuid: uuid,
-		handler: "handler",
+		Name: name,
+		UUID: uuid,
+		Handler: "handler",
 	}
 
 	m := []byte{123,125}
 	so:= Sender{
-		name: "sender",
-		uuid: "suid",
+		Name: "sender",
+		UUID: "suid",
 	}
 
 	handler := func (s Sender, p []byte) error {
@@ -491,8 +491,8 @@ func TestCallSignedBinaryMessage (t *testing.T) {
 		if (string(m) != string(p)) {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
-		if (so.name != s.name) {
-			t.Error("Received message validation failed: %x got %x", so.name, s.name)
+		if (so.Name != s.Name) {
+			t.Error("Received message validation failed: %x got %x", so.Name, s.Name)
 		}
 		end <- true
 		return nil
@@ -545,15 +545,15 @@ func TestCastSignedBinaryMessage (t *testing.T) {
 
 	end := make (chan bool)
 	d := Destination{
-		name: name,
-		uuid: uuid,
-		handler: "handler",
+		Name: name,
+		UUID: uuid,
+		Handler: "handler",
 	}
 
 	m := []byte{123,125}
 	so:= Sender{
-		name: "sender",
-		uuid: "suid",
+		Name: "sender",
+		UUID: "suid",
 	}
 
 	handler := func (s Sender, p []byte) error {
@@ -563,8 +563,8 @@ func TestCastSignedBinaryMessage (t *testing.T) {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
 
-		if (so.name != s.name) {
-			t.Error("Received message validation failed: %x got %x", so.name, s.name)
+		if (so.Name != s.Name) {
+			t.Error("Received message validation failed: %x got %x", so.Name, s.Name)
 		}
 
 		end <- true
@@ -615,14 +615,14 @@ func TestProxyCall (t *testing.T) {
 
 	end := make (chan bool)
 	d := Destination{
-		name: name,
-		uuid: uuid,
-		handler: "handler",
+		Name: name,
+		UUID: uuid,
+		Handler: "handler",
 	}
 	p := Receiver{
-		name: name,
-		uuid: uuid,
-		handler: "proxy",
+		Name: name,
+		UUID: uuid,
+		Handler: "proxy",
 	}
 
 	m := struct{ Name string }{"name",}
@@ -700,14 +700,14 @@ func TestProxyCast (t *testing.T) {
 
 	end := make (chan bool)
 	d := Destination{
-		name: name,
-		uuid: uuid,
-		handler: "handler",
+		Name: name,
+		UUID: uuid,
+		Handler: "handler",
 	}
 	p := Receiver{
-		name: name,
-		uuid: uuid,
-		handler: "proxy",
+		Name: name,
+		UUID: uuid,
+		Handler: "proxy",
 	}
 
 	m := struct{ Name string }{"name",}
@@ -783,14 +783,14 @@ func TestProxyCallBinary (t *testing.T) {
 
 	end := make (chan bool)
 	d := Destination{
-		name: name,
-		uuid: uuid,
-		handler: "handler",
+		Name: name,
+		UUID: uuid,
+		Handler: "handler",
 	}
 	p := Receiver{
-		name: name,
-		uuid: uuid,
-		handler: "proxy",
+		Name: name,
+		UUID: uuid,
+		Handler: "proxy",
 	}
 
 	m := []byte{123,125}
@@ -855,14 +855,14 @@ func TestProxyCastBinary (t *testing.T) {
 
 	end := make (chan bool)
 	d := Destination{
-		name: name,
-		uuid: uuid,
-		handler: "handler",
+		Name: name,
+		UUID: uuid,
+		Handler: "handler",
 	}
 	p := Receiver{
-		name: name,
-		uuid: uuid,
-		handler: "proxy",
+		Name: name,
+		UUID: uuid,
+		Handler: "proxy",
 	}
 
 	m := []byte{123,125}

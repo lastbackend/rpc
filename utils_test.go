@@ -6,8 +6,8 @@ import (
 
 func TestSenderSign (t *testing.T) {
 	s := Sender{
-		name: "demo",
-		uuid: "uuid",
+		Name: "demo",
+		UUID: "uuid",
 	}
 
 	sign := s.Sign()
@@ -28,9 +28,9 @@ func TestSenderSign (t *testing.T) {
 
 func TestProxySign (t *testing.T) {
 	p := Receiver{
-		name: "demo",
-		uuid: "uuid",
-		handler: "handler",
+		Name: "demo",
+		UUID: "uuid",
+		Handler: "handler",
 	}
 
 	sign := p.Sign()
@@ -55,9 +55,9 @@ func TestProxySign (t *testing.T) {
 
 func TestReceiverSign (t *testing.T) {
 	r := Destination{
-		name: "demo",
-		uuid: "uuid",
-		handler: "handler",
+		Name: "demo",
+		UUID: "uuid",
+		Handler: "handler",
 	}
 
 	sign := r.Sign()
@@ -86,15 +86,15 @@ func TestEncode (t *testing.T) {
 	r.token = "token"
 
 	s := Sender{
-		name: "demo",
-		uuid: "uuid",
+		Name: "demo",
+		UUID: "uuid",
 	}
 
 
 	d := Destination{
-		name: "demo",
-		uuid: "uuid",
-		handler: "handler",
+		Name: "demo",
+		UUID: "uuid",
+		Handler: "handler",
 	}
 
 	p := Receiver{}
