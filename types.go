@@ -14,11 +14,31 @@ type RPC struct {
 	connect   chan bool
 	reconnect chan bool
 	connected chan bool
-	shutdown  chan bool
+	done      chan error
 	error     chan error
 
 	handlers  map[string]Handler
 	upstreams map[string]Upstream
+
+	channels  channels
+	exchanges exchanges
+	queues    queues
+
+
+
+}
+
+type channels struct {
+	direct *amqp.Channel
+	topic  *amqp.Channel
+}
+type exchanges struct {
+	direct string
+	topic  string
+}
+type queues struct {
+	direct string
+	topic  string
 }
 
 type Sender struct {

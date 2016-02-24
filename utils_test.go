@@ -82,6 +82,8 @@ func TestReceiverSign (t *testing.T) {
 
 func TestEncode (t *testing.T) {
 
+	r := RPC{}
+
 	s := Sender{
 		name: "demo",
 		uuid: "uuid",
@@ -98,7 +100,7 @@ func TestEncode (t *testing.T) {
 
 
 
-	body := rpc.encode(s, d, p, []byte{123,125})
+	body := r.encode(s, d, p, []byte{123,125})
 
 	data := []byte{
 

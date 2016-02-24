@@ -29,6 +29,8 @@ func (r *RPC) listen() {
 			<-timer.C
 			go r.dial()
 			timer.Stop()
+		case <- r.done :
+			return
 		}
 	}
 }
@@ -59,7 +61,7 @@ func (r *RPC) dial() {
 		r.connect <- true
 	}()
 
-	rpc.connected <- true
+	r.connected <- true
 	r.subscribe()
 
 }
@@ -76,7 +78,7 @@ func (r *RPC) publish (call bool, s Sender, d Destination, p Receiver, data []by
 
 	body := r.encode(s, d, p, data)
 
-	log.Printf("PRC: publish %s:%s, send: %dB body (%s)", d.name, d.uuid, len(body), body)
+	log.Printf("PRC: publish to %s:%s, dest: %s:%s, send: %dB body (%s)", d.name, d.uuid, p.name, p.uuid, len(body), body)
 
 	channel, err := r.conn.Channel()
 	if err != nil {
@@ -108,101 +110,85 @@ func (r *RPC) subscribe() error {
 	var err error
 	var done = make(chan error)
 
-	var channels = struct {
-		direct *amqp.Channel
-		topic  *amqp.Channel
-	}{}
-
-	var exchanges = struct {
-		direct string
-		topic  string
-	}{
-		fmt.Sprintf("%s:%s", r.name, "direct"),
-		fmt.Sprintf("%s:%s", r.name, "topic"),
-	}
+	r.exchanges.direct = fmt.Sprintf("%s:%s", r.name, "direct")
+	r.exchanges.topic = fmt.Sprintf("%s:%s", r.name, "topic")
 
 
-	var queues   = struct {
-		direct string
-		topic  string
-	}{
-		fmt.Sprintf("%s:%s", r.name, "direct"),
-		fmt.Sprintf("%s:%s", r.name, "topic"),
-	}
-
+	r.queues.direct = fmt.Sprintf("%s:%s", r.name, "direct")
+	r.queues.topic = fmt.Sprintf("%s:%s", r.name, "topic")
 
 	// Get hostname for register current instance
 	log.Printf("RPC: Create new consumer: %s", r.name)
 
-	channels.direct, err = r.conn.Channel();
+	r.channels.direct, err = r.conn.Channel();
 	if err != nil {
 		log.Println("Channel:", err)
 		return err
 	}
 
-	err = channels.direct.Qos(100, 0, true)
+	err = r.channels.direct.Qos(100, 0, true)
 	if err != nil {
 		log.Println("Channel:", err)
 		return err
 	}
 
-	channels.topic, err = r.conn.Channel();
+	r.channels.topic, err = r.conn.Channel();
 	if err != nil {
 		log.Println("Channel:", err)
 		return err
 	}
 
-	err = channels.topic.Qos(100, 0, true)
+	err = r.channels.topic.Qos(100, 0, true)
 	if err != nil {
 		log.Println("Channel:", err)
 		return err
 	}
 
 	// create direct exchange for guarantee delivery messages
-	if err = channels.direct.ExchangeDeclare(exchanges.direct, "direct", true, false, false, false, nil); err != nil {
+	if err = r.channels.direct.ExchangeDeclare(r.exchanges.direct, "direct", true, false, false, false, nil); err != nil {
 		return fmt.Errorf("Exchange Declare: %s", err)
 	}
 
 	// create topic exchange for non guarantee delivery messages
-	if err = channels.topic.ExchangeDeclare(exchanges.topic, "topic", true, false, false, false, nil); err != nil {
+	if err = r.channels.topic.ExchangeDeclare(r.exchanges.topic, "topic", true, false, false, false, nil); err != nil {
 		return fmt.Errorf("Exchange Declare: %s", err)
 	}
 
 	// create direct queue for guarantee delivery messages
-	if _, err := channels.direct.QueueDeclare(queues.direct, true, false, false, false, nil); err != nil {
+	if _, err := r.channels.direct.QueueDeclare(r.queues.direct, true, false, false, false, nil); err != nil {
 		return fmt.Errorf("Queue Declare: %s", err)
 	}
 
 	// create topic queue for non guarantee delivery messages
-	if _, err := channels.topic.QueueDeclare(queues.topic, true, true, false, false, nil); err != nil {
+	if _, err := r.channels.topic.QueueDeclare(r.queues.topic, true, true, false, false, nil); err != nil {
 		return fmt.Errorf("Queue Declare: %s", err)
 	}
 
 	// create bindings for direct messages
-	if err = channels.direct.QueueBind(queues.direct, r.uuid, exchanges.direct, false, nil); err != nil {
+	if err = r.channels.direct.QueueBind(r.queues.direct, r.uuid, r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = channels.direct.QueueBind(queues.direct, r.name, exchanges.direct, false, nil); err != nil {
+	if err = r.channels.direct.QueueBind(r.queues.direct, r.name, r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
 	// create bindings for topic messages
-	if err = channels.direct.QueueBind(queues.topic, r.uuid, exchanges.direct, false, nil); err != nil {
+	if err = r.channels.direct.QueueBind(r.queues.topic, r.uuid, r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = channels.direct.QueueBind(queues.topic, r.name, exchanges.direct, false, nil); err != nil {
+	if err = r.channels.direct.QueueBind(r.queues.topic, r.name, r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
 
-	messages, err := channels.direct.Consume(queues.direct, r.name, false, false, false, false, nil)
+	messages, err := r.channels.direct.Consume(r.queues.direct, r.queues.direct, false, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("Queue Consume: %s", err)
 	}
 
-	streams, err := channels.topic.Consume(queues.topic, r.name, false, false, false, false, nil)
+	streams, err := r.channels.topic.Consume(r.queues.topic, r.queues.topic, false, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("Queue Consume: %s", err)
 	}
@@ -218,6 +204,7 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 
 		go func(m amqp.Delivery) {
 
+			log.Println("receiver message from:", m.DeliveryTag, m.ConsumerTag, string(m.Body))
 			// validate token
 			token := string(m.Body[0:32])
 			token  = token[:strings.Index(string(token), "\x00")]
@@ -257,13 +244,12 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 			data := m.Body[256:len(m.Body)]
 
 			if p.name != "" {
-				log.Println("PRC: need upstream")
+				log.Println("PRC: need upstream", m.ConsumerTag)
 				_, ok := r.upstreams[p.handler]
 
 				if !ok {
 					log.Println("RPC: upstream not found", p.handler)
 					m.Ack(false)
-					return
 				}
 
 				err := r.upstreams[p.handler](s, e, data)
@@ -275,25 +261,48 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 				return
 			}
 
-			log.Println("PRC: send to handler")
+				log.Println("PRC: send to handler", m.ConsumerTag)
 
-			_, ok := r.handlers[e.handler]
+				_, ok := r.handlers[e.handler]
 
-			if !ok {
-				log.Println("RPC: handler not found", e.handler)
+				if !ok {
+					log.Println("RPC: handler not found", e.handler)
+					m.Ack(false)
+					return
+				}
+
+				err := r.handlers[e.handler](s, data)
+				if err != nil {
+					log.Println("RPC: Proxy error:", err)
+				}
+
 				m.Ack(false)
-				return
-			}
-
-			err := r.handlers[e.handler](s, data)
-			if err != nil {
-				log.Println("RPC: Proxy error:", err)
-			}
-
-			m.Ack(false)
 		}(d)
 	}
 
 	fmt.Println("handle: deliveries channel closed")
-	done <- nil
+	r.done <- nil
+	return
+}
+
+func (r *RPC) shutdown () error {
+	// will close() the deliveries channel
+	log.Println("RPC: Shutdown broker")
+	// close direct channels
+	if err := r.channels.direct.Cancel(r.queues.direct, true); err != nil {
+		return fmt.Errorf("Consumer cancel failed: %s", err)
+	}
+
+	if err := r.channels.topic.Cancel(r.queues.topic, true); err != nil {
+		return fmt.Errorf("Consumer cancel failed: %s", err)
+	}
+
+	if err := r.conn.Close(); err != nil {
+		return fmt.Errorf("AMQP connection close error: %s", err)
+	}
+
+	defer fmt.Printf("AMQP shutdown OK")
+
+	// wait for handle() to exit
+	return <-r.done
 }
