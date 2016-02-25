@@ -14,6 +14,7 @@ type RPC struct {
 	connect   chan bool
 	reconnect chan bool
 	connected chan bool
+
 	done      chan error
 	error     chan error
 

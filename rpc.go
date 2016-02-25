@@ -72,6 +72,14 @@ func (r *RPC) Listen () {
 	r.connect <- true
 }
 
+func (r *RPC) Connected() chan bool {
+	return r.connected
+}
+
+func (r *RPC) Cleanup () {
+	r.cleanup()
+}
+
 func (r *RPC) Shutdown() {
 	r.online = false
 	r.shutdown()

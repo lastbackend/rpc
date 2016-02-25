@@ -241,19 +241,23 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 		log.Println("RPC: message from:", d.DeliveryTag, d.ConsumerTag, string(d.Body))
 		// validate token
 		token := string(d.Body[0:32])
-		token = token[:strings.Index(string(token), "\x00")]
+		if strings.Index(string(token), "\x00") >= 0 {
+			token = token[:strings.Index(string(token), "\x00")]
+		}
 
 		if r.token != token {
 			log.Println("RPC: token verification failed")
 			d.Ack(false)
 		}
-
 		// parse sender information
 		s := Sender{}
 		s.Name = string(d.Body[32:48])
 		s.UUID = string(d.Body[48:84])
 
-		s.Name = s.Name[:strings.Index(string(s.Name), "\x00")]
+		if strings.Index(string(s.Name), "\x00") >= 0 {
+			s.Name = s.Name[:strings.Index(string(s.Name), "\x00")]
+		}
+
 
 		// parse destination information
 		e := Destination{}
@@ -261,8 +265,12 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 		e.UUID = string(d.Body[100:136])
 		e.Handler = string(d.Body[136:152])
 
-		e.Name = e.Name[:strings.Index(string(e.Name), "\x00")]
-		e.Handler = e.Handler[:strings.Index(string(e.Handler), "\x00")]
+		if strings.Index(string(e.Name), "\x00") >= 0 {
+			e.Name = e.Name[:strings.Index(string(e.Name), "\x00")]
+		}
+		if strings.Index(string(e.Handler), "\x00") >= 0 {
+			e.Handler = e.Handler[:strings.Index(string(e.Handler), "\x00")]
+		}
 
 		// parse receiver information
 		p := Receiver{}
@@ -270,8 +278,12 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 		p.UUID = string(d.Body[168:204])
 		p.Handler = string(d.Body[204:220])
 
-		p.Name = p.Name[:strings.Index(string(p.Name), "\x00")]
-		p.Handler = p.Handler[:strings.Index(string(p.Handler), "\x00")]
+		if strings.Index(string(p.Name), "\x00") >= 0 {
+			p.Name = p.Name[:strings.Index(string(p.Name), "\x00")]
+		}
+		if strings.Index(string(p.Handler), "\x00") >= 0 {
+			p.Handler = p.Handler[:strings.Index(string(p.Handler), "\x00")]
+		}
 
 		data := d.Body[256:len(d.Body)]
 
