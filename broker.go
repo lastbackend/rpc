@@ -144,7 +144,7 @@ func (r *RPC) subscribe() error {
 		return err
 	}
 
-	err = r.channels.direct.Qos(100, 0, true)
+	err = r.channels.direct.Qos(r.limit, 0, true)
 	if err != nil {
 		log.Println("Channel:", err)
 		return err
@@ -156,7 +156,7 @@ func (r *RPC) subscribe() error {
 		return err
 	}
 
-	err = r.channels.topic.Qos(100, 0, true)
+	err = r.channels.topic.Qos(r.limit, 0, true)
 	if err != nil {
 		log.Println("Channel:", err)
 		return err

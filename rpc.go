@@ -40,33 +40,39 @@ Handlers and Upstreams examples:
 package rpc
 
 // Register application in RPC
-func Register (name string, uuid string, token string) (RPC, error) {
+func Register(name string, uuid string, token string) (RPC, error) {
 
 	var rpc RPC
 
-	rpc.name  = name
-	rpc.uuid  = uuid
+	rpc.name = name
+	rpc.uuid = uuid
 	rpc.token = token
 
-	rpc.connect   = make (chan bool)
-	rpc.reconnect = make (chan bool)
-	rpc.connected = make (chan bool)
+	rpc.connect = make(chan bool)
+	rpc.reconnect = make(chan bool)
+	rpc.connected = make(chan bool)
 
-	rpc.done      = make (chan error)
-	rpc.error     = make (chan error)
+	rpc.limit = 1
 
-	rpc.handlers  = make (map[string]Handler)
-	rpc.upstreams = make (map[string]Upstream)
+	rpc.done = make(chan error)
+	rpc.error = make(chan error)
+
+	rpc.handlers = make(map[string]Handler)
+	rpc.upstreams = make(map[string]Upstream)
 	return rpc, nil
 }
 
 // SetURI - set URI connection
-func (r *RPC) SetURI (uri string) {
+func (r *RPC) SetURI(uri string) {
 	r.uri = uri
 }
 
+func (r *RPC) SetLimit(limit int) {
+	r.limit = limit
+}
+
 // Start listening for incoming messages
-func (r *RPC) Listen () {
+func (r *RPC) Listen() {
 	go r.listen()
 	r.online = true
 	r.connect <- true
@@ -76,7 +82,7 @@ func (r *RPC) Connected() chan bool {
 	return r.connected
 }
 
-func (r *RPC) Cleanup () {
+func (r *RPC) Cleanup() {
 	r.cleanup()
 }
 

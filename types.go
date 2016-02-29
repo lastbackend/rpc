@@ -3,7 +3,6 @@ package rpc
 import "github.com/streadway/amqp"
 
 type RPC struct {
-
 	uri  string
 	conn *amqp.Connection
 
@@ -11,12 +10,14 @@ type RPC struct {
 	uuid  string
 	token string
 
+	limit int
+
 	connect   chan bool
 	reconnect chan bool
 	connected chan bool
 
-	done      chan error
-	error     chan error
+	done  chan error
+	error chan error
 
 	handlers  map[string]Handler
 	upstreams map[string]Upstream
@@ -60,6 +61,6 @@ type Receiver struct {
 	All     bool
 }
 
-type Handler  func (Sender, []byte) error
+type Handler func(Sender, []byte) error
 
-type Upstream func (Sender, Destination, []byte) error
+type Upstream func(Sender, Destination, []byte) error
