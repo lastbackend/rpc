@@ -1,12 +1,13 @@
 package rpc
 
 import (
-	"log"
-	"time"
-	"os"
 	"fmt"
-	"github.com/streadway/amqp"
+	"log"
+	"os"
 	"strings"
+	"time"
+
+	"github.com/streadway/amqp"
 )
 
 func (r *RPC) listen() {
@@ -14,7 +15,7 @@ func (r *RPC) listen() {
 
 	for {
 		select {
-		case <- r.done :
+		case <-r.done:
 			return
 		case <-r.connect:
 			if r.online == false {
@@ -69,24 +70,24 @@ func (r *RPC) dial() {
 		if r.online == false {
 			return
 		}
-		log.Printf("RPC: Closing: %s, %s", r.name, <-r.conn.NotifyClose(make(chan *amqp.Error)))
+		log.Println("RPC: Closing:", r.name)
+		<-r.conn.NotifyClose(make(chan *amqp.Error))
 		r.connect <- true
 	}()
-
 
 	r.subscribe()
 	r.connected <- true
 }
 
-func (r *RPC) call (s Sender, d Destination, p Receiver, data []byte) error {
+func (r *RPC) call(s Sender, d Destination, p Receiver, data []byte) error {
 	return r.publish(true, s, d, p, data)
 }
 
-func (r *RPC) cast (s Sender, d Destination, p Receiver, data []byte) error {
+func (r *RPC) cast(s Sender, d Destination, p Receiver, data []byte) error {
 	return r.publish(false, s, d, p, data)
 }
 
-func (r *RPC) publish (call bool, s Sender, d Destination, p Receiver, data []byte) error {
+func (r *RPC) publish(call bool, s Sender, d Destination, p Receiver, data []byte) error {
 
 	body := r.encode(s, d, p, data)
 
@@ -102,7 +103,7 @@ func (r *RPC) publish (call bool, s Sender, d Destination, p Receiver, data []by
 		exchange = fmt.Sprintf("%s:%s", d.Name, "topic")
 	}
 
-	bind     := d.UUID
+	bind := d.UUID
 	if bind == "" {
 		bind = d.Name
 	}
@@ -131,14 +132,13 @@ func (r *RPC) subscribe() error {
 	r.exchanges.direct = fmt.Sprintf("%s:%s", r.name, "direct")
 	r.exchanges.topic = fmt.Sprintf("%s:%s", r.name, "topic")
 
-
 	r.queues.direct = fmt.Sprintf("%s:%s", r.name, "direct")
 	r.queues.topic = fmt.Sprintf("%s:%s", r.name, "topic")
 
 	// Get hostname for register current instance
 	log.Printf("RPC: Create new consumer: %s", r.name)
 
-	r.channels.direct, err = r.conn.Channel();
+	r.channels.direct, err = r.conn.Channel()
 	if err != nil {
 		log.Println("Channel:", err)
 		return err
@@ -150,7 +150,7 @@ func (r *RPC) subscribe() error {
 		return err
 	}
 
-	r.channels.topic, err = r.conn.Channel();
+	r.channels.topic, err = r.conn.Channel()
 	if err != nil {
 		log.Println("Channel:", err)
 		return err
@@ -182,7 +182,6 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Queue Declare: %s", err)
 	}
 
-
 	// create bindings for direct messages
 	if err = r.channels.direct.QueueBind(r.queues.direct, r.uuid+":call", r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
@@ -199,7 +198,6 @@ func (r *RPC) subscribe() error {
 	if err = r.channels.direct.QueueBind(r.queues.direct, r.name+":call", r.exchanges.topic, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
-
 
 	// create bindings for topic messages
 	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid+":cast", r.exchanges.topic, false, nil); err != nil {
@@ -218,7 +216,6 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-
 	messages, err := r.channels.direct.Consume(r.queues.direct, r.queues.direct, false, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("Queue Consume: %s", err)
@@ -229,13 +226,17 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Queue Consume: %s", err)
 	}
 
-	go r.handle (messages, done)
-	go r.handle (streams, done)
+	go r.handle(messages, done)
+	go r.handle(streams, done)
 
 	return nil
 }
 
-func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
+func (r *RPC) handle(msgs <-chan amqp.Delivery, done chan error) {
+
+	concurrent := 0
+	last := make(chan bool)
+
 	for d := range msgs {
 
 		log.Println("RPC: message from:", d.DeliveryTag, d.ConsumerTag, string(d.Body))
@@ -257,7 +258,6 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 		if strings.Index(string(s.Name), "\x00") >= 0 {
 			s.Name = s.Name[:strings.Index(string(s.Name), "\x00")]
 		}
-
 
 		// parse destination information
 		e := Destination{}
@@ -298,6 +298,7 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 			}
 
 			go func() {
+				concurrent++
 				log.Println("Call upstream")
 				err := r.upstreams[p.Handler](s, e, data)
 				log.Println("Upstream called")
@@ -307,6 +308,10 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 				}
 
 				d.Ack(false)
+				concurrent--
+				if concurrent == 0 {
+					last <- true
+				}
 			}()
 		}
 
@@ -319,6 +324,7 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 		}
 
 		go func() {
+			concurrent++
 			log.Println("call handler")
 			err := r.handlers[e.Handler](s, data)
 			log.Println("call executed")
@@ -328,8 +334,19 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 			}
 
 			d.Ack(false)
-			log.Println("DONE:!!")
+			concurrent--
+			if concurrent == 0 {
+				last <- true
+			}
+
 		}()
+	}
+
+	if concurrent > 0 {
+		select {
+		case <-last:
+			break
+		}
 	}
 
 	fmt.Println("handle: deliveries channel closed")
@@ -337,8 +354,8 @@ func (r *RPC) handle (msgs <-chan amqp.Delivery, done chan error) {
 	return
 }
 
-func (r *RPC) cleanup() error{
-	var err error;
+func (r *RPC) cleanup() error {
+	var err error
 	err = r.channels.direct.ExchangeDelete(r.exchanges.direct, false, true)
 	if err != nil {
 		log.Println("Exchange remove error", err)
@@ -360,24 +377,25 @@ func (r *RPC) cleanup() error{
 	return nil
 }
 
-func (r *RPC) shutdown () error {
+func (r *RPC) shutdown() error {
 	// will close() the deliveries channel
 	log.Println("RPC: Shutdown broker")
 	// close direct channels
-	if err := r.channels.direct.Cancel(r.queues.direct, true); err != nil {
+	if err := r.channels.direct.Cancel(r.queues.direct, false); err != nil {
 		return fmt.Errorf("Consumer cancel failed: %s", err)
 	}
 
-	if err := r.channels.topic.Cancel(r.queues.topic, true); err != nil {
+	if err := r.channels.topic.Cancel(r.queues.topic, false); err != nil {
 		return fmt.Errorf("Consumer cancel failed: %s", err)
 	}
-
+	<-r.done
 	if err := r.conn.Close(); err != nil {
 		return fmt.Errorf("AMQP connection close error: %s", err)
 	}
 
 	defer fmt.Printf("AMQP shutdown OK")
 
+	return nil
 	// wait for handle() to exit
-	return <-r.done
+
 }
