@@ -70,8 +70,7 @@ func (r *RPC) dial() {
 		if r.online == false {
 			return
 		}
-		log.Println("RPC: Closing:", r.name)
-		<-r.conn.NotifyClose(make(chan *amqp.Error))
+		log.Println("RPC: Closing:", r.name, <-r.conn.NotifyClose(make(chan *amqp.Error)))
 		r.connect <- true
 	}()
 
@@ -313,6 +312,7 @@ func (r *RPC) handle(msgs <-chan amqp.Delivery, done chan error) {
 					last <- true
 				}
 			}()
+			continue
 		}
 
 		log.Println("PRC: send to handler", d.ConsumerTag)
