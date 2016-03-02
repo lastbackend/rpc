@@ -86,6 +86,7 @@ func (r *RPC) cast(s Sender, d Destination, p Receiver, data []byte) error {
 	return r.publish(false, s, d, p, data)
 }
 
+
 func (r *RPC) publish(call bool, s Sender, d Destination, p Receiver, data []byte) error {
 
 	body := r.encode(s, d, p, data)
@@ -97,14 +98,29 @@ func (r *RPC) publish(call bool, s Sender, d Destination, p Receiver, data []byt
 		return fmt.Errorf("Channel: %s", err)
 	}
 
+
 	exchange := fmt.Sprintf("%s:%s", d.Name, "direct")
 	if d.All {
 		exchange = fmt.Sprintf("%s:%s", d.Name, "topic")
 	}
 
+	if p.Name != "" {
+		exchange = fmt.Sprintf("%s:%s", p.Name, "direct")
+		if d.All {
+			exchange = fmt.Sprintf("%s:%s", p.Name, "topic")
+		}
+	}
+
 	bind := d.UUID
 	if bind == "" {
 		bind = d.Name
+	}
+
+	if p.Name != "" {
+		bind = p.Name
+		if p.UUID != "" {
+			bind = p.UUID
+		}
 	}
 
 	if call {
