@@ -277,7 +277,6 @@ func (r *RPC) handle(msgs <-chan amqp.Delivery, done chan error) {
 			s.UUID = s.UUID[:strings.Index(string(s.UUID), "\x00")]
 		}
 
-
 		if strings.Index(string(s.Name), "\x00") >= 0 {
 			s.Name = s.Name[:strings.Index(string(s.Name), "\x00")]
 		}
@@ -319,29 +318,29 @@ func (r *RPC) handle(msgs <-chan amqp.Delivery, done chan error) {
 			if p.Name == "" {
 				return
 			}
-				log.Println("PRC: need upstream", d.ConsumerTag)
-				_, ok := r.upstreams[p.Handler]
+			log.Println("PRC: need upstream", d.ConsumerTag)
+			_, ok := r.upstreams[p.Handler]
 
-				if !ok {
-					log.Println("RPC: upstream not found", p.Handler)
-					d.Ack(false)
-					return
-				}
-
-				concurrent++
-				log.Println("Call upstream")
-				err := r.upstreams[p.Handler](s, e, data)
-				log.Println("Upstream called")
-
-				if err != nil {
-					log.Println("RPC: Proxy error:", err)
-				}
-
+			if !ok {
+				log.Println("RPC: upstream not found", p.Handler)
 				d.Ack(false)
-				concurrent--
-				if concurrent == 0 {
-					last <- true
-				}
+				return
+			}
+
+			concurrent++
+			log.Println("Call upstream")
+			err := r.upstreams[p.Handler](s, e, data)
+			log.Println("Upstream called")
+
+			if err != nil {
+				log.Println("RPC: Proxy error:", err)
+			}
+
+			d.Ack(false)
+			concurrent--
+			if concurrent == 0 {
+				last <- true
+			}
 
 		}()
 

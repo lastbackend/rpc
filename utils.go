@@ -15,7 +15,7 @@ func (s *Sender) Sign() []byte {
 	return body
 }
 
-func (p *Receiver) Sign () []byte {
+func (p *Receiver) Sign() []byte {
 
 	var body []byte
 
@@ -34,7 +34,7 @@ func (p *Receiver) Sign () []byte {
 	return body
 }
 
-func (r *Destination) Sign () []byte {
+func (r *Destination) Sign() []byte {
 
 	var body []byte
 
@@ -53,7 +53,7 @@ func (r *Destination) Sign () []byte {
 	return body
 }
 
-func (r *RPC) encode ( s Sender, d Destination, p Receiver, data []byte) []byte {
+func (r *RPC) encode(s Sender, d Destination, p Receiver, data []byte) []byte {
 	var body []byte
 	var hash [256]byte
 
@@ -64,7 +64,6 @@ func (r *RPC) encode ( s Sender, d Destination, p Receiver, data []byte) []byte 
 	copy(hash[32:84], s.Sign()[:])
 	copy(hash[84:152], d.Sign()[:])
 	copy(hash[152:220], p.Sign()[:])
-
 
 	body = append(body, hash[:]...)
 	body = append(body, data[:]...)

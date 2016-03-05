@@ -1,21 +1,20 @@
 package rpc
 
 import (
-	"testing"
+	"encoding/json"
 	"fmt"
 	"log"
+	"testing"
 	"time"
-	"encoding/json"
 )
 
-
-func TestCallMessage (t *testing.T) {
+func TestCallMessage(t *testing.T) {
 
 	var (
 		name  = "test-call"
 		uuid  = "uuid"
 		token = "token"
-		a = 0
+		a     = 0
 	)
 
 	r, err := Register(name, uuid, token)
@@ -23,7 +22,7 @@ func TestCallMessage (t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer func (){
+	defer func() {
 		r.cleanup()
 		r.shutdown()
 	}()
@@ -34,16 +33,16 @@ func TestCallMessage (t *testing.T) {
 		t.Error("Expected uri: %s got %s", uri, r.uri)
 	}
 
-	end := make (chan bool)
+	end := make(chan bool)
 	d := Destination{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "handler",
 	}
 
-	m := struct{ Name string }{"name",}
+	m := struct{ Name string }{"name"}
 
-	handler := func (s Sender, p []byte) error {
+	handler := func(s Sender, p []byte) error {
 		log.Print("received", p)
 
 		if a <= 4 {
@@ -53,18 +52,16 @@ func TestCallMessage (t *testing.T) {
 			return nil
 		}
 
-		i := struct{
+		i := struct {
 			Name string
-		}{
-
-		}
+		}{}
 
 		err = json.Unmarshal(p, &i)
 		if err != nil {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
 
-		if (m.Name != i.Name) {
+		if m.Name != i.Name {
 			t.Error("Received message validation failed: %x got %x", m, i)
 		}
 		end <- true
@@ -75,13 +72,13 @@ func TestCallMessage (t *testing.T) {
 	r.Listen()
 	t.Log("RPC registered and setuped")
 
-	timer := time.NewTimer(time.Second*5)
+	timer := time.NewTimer(time.Second * 5)
 
 	for {
 		select {
-		case <- r.connected:
+		case <-r.connected:
 			r.Call(d, m)
-		case <- end:
+		case <-end:
 			return
 		case <-timer.C:
 			t.Error("No message received: failed")
@@ -91,7 +88,7 @@ func TestCallMessage (t *testing.T) {
 	}
 }
 
-func TestCastMessage (t *testing.T) {
+func TestCastMessage(t *testing.T) {
 
 	var (
 		name  = "test-case"
@@ -104,7 +101,7 @@ func TestCastMessage (t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer func (){
+	defer func() {
 		r.cleanup()
 		r.shutdown()
 	}()
@@ -112,34 +109,32 @@ func TestCastMessage (t *testing.T) {
 	uri := fmt.Sprintf("amqp://guest:guest@localhost:5672")
 	r.SetURI(uri)
 
-	end := make (chan bool)
+	end := make(chan bool)
 	d := Destination{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "handler",
 	}
 
-	m := struct{
+	m := struct {
 		Name string
 	}{
 		"name",
 	}
 
-	handler := func (s Sender, p []byte) error {
+	handler := func(s Sender, p []byte) error {
 		log.Print("received", p)
 
-		i := struct{
+		i := struct {
 			Name string
-		}{
-
-		}
+		}{}
 
 		err = json.Unmarshal(p, &i)
 		if err != nil {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
 
-		if (m.Name != i.Name) {
+		if m.Name != i.Name {
 			t.Error("Received message validation failed: %x got %x", m, i)
 		}
 		end <- true
@@ -149,14 +144,14 @@ func TestCastMessage (t *testing.T) {
 	r.SetHandler("handler", handler)
 	r.Listen()
 
-	timer := time.NewTimer(time.Second*5)
+	timer := time.NewTimer(time.Second * 5)
 	t.Log("RPC registered and setuped")
 
 	for {
 		select {
-		case <- r.connected:
+		case <-r.connected:
 			r.Cast(d, m)
-		case <- end:
+		case <-end:
 			return
 		case <-timer.C:
 			t.Error("No message received: failed")
@@ -166,8 +161,7 @@ func TestCastMessage (t *testing.T) {
 	}
 }
 
-
-func TestCallBinaryMessage (t *testing.T) {
+func TestCallBinaryMessage(t *testing.T) {
 
 	var (
 		name  = "test-call-b"
@@ -180,7 +174,7 @@ func TestCallBinaryMessage (t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer func (){
+	defer func() {
 		r.cleanup()
 		r.shutdown()
 	}()
@@ -188,19 +182,19 @@ func TestCallBinaryMessage (t *testing.T) {
 	uri := fmt.Sprintf("amqp://guest:guest@localhost:5672")
 	r.SetURI(uri)
 
-	end := make (chan bool)
+	end := make(chan bool)
 	d := Destination{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "handler",
 	}
 
-	m := []byte{123,125}
+	m := []byte{123, 125}
 
-	handler := func (s Sender, p []byte) error {
+	handler := func(s Sender, p []byte) error {
 		log.Print("received", p)
 
-		if (string(m) != string(p)) {
+		if string(m) != string(p) {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
 		end <- true
@@ -210,14 +204,14 @@ func TestCallBinaryMessage (t *testing.T) {
 	r.SetHandler("handler", handler)
 	r.Listen()
 
-	timer := time.NewTimer(time.Second*5)
+	timer := time.NewTimer(time.Second * 5)
 	t.Log("RPC registered and setuped")
 
 	for {
 		select {
-		case <- r.connected:
+		case <-r.connected:
 			r.CallBinary(d, m)
-		case <- end:
+		case <-end:
 			return
 		case <-timer.C:
 			t.Error("No message received: failed")
@@ -228,7 +222,7 @@ func TestCallBinaryMessage (t *testing.T) {
 
 }
 
-func TestCastBinaryMessage (t *testing.T) {
+func TestCastBinaryMessage(t *testing.T) {
 
 	var (
 		name  = "test-cast-b"
@@ -241,7 +235,7 @@ func TestCastBinaryMessage (t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer func (){
+	defer func() {
 		r.cleanup()
 		r.shutdown()
 	}()
@@ -252,19 +246,19 @@ func TestCastBinaryMessage (t *testing.T) {
 		t.Error("Expected uri: %s got %s", uri, r.uri)
 	}
 
-	end := make (chan bool)
+	end := make(chan bool)
 	d := Destination{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "handler",
 	}
 
-	m := []byte{123,125}
+	m := []byte{123, 125}
 
-	handler := func (s Sender, p []byte) error {
+	handler := func(s Sender, p []byte) error {
 		log.Print("received", p)
 
-		if (string(m) != string(p)) {
+		if string(m) != string(p) {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
 		end <- true
@@ -274,14 +268,14 @@ func TestCastBinaryMessage (t *testing.T) {
 	r.SetHandler("handler", handler)
 	r.Listen()
 
-	timer := time.NewTimer(time.Second*5)
+	timer := time.NewTimer(time.Second * 5)
 	t.Log("RPC registered and setuped")
 
 	for {
 		select {
-		case <- r.connected:
+		case <-r.connected:
 			r.CastBinary(d, m)
-		case <- end:
+		case <-end:
 			return
 		case <-timer.C:
 			t.Error("No message received: failed")
@@ -291,8 +285,7 @@ func TestCastBinaryMessage (t *testing.T) {
 	}
 }
 
-
-func TestCallSignedMessage (t *testing.T) {
+func TestCallSignedMessage(t *testing.T) {
 
 	var (
 		name  = "test-call"
@@ -305,7 +298,7 @@ func TestCallSignedMessage (t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer func (){
+	defer func() {
 		r.cleanup()
 		r.shutdown()
 	}()
@@ -316,38 +309,36 @@ func TestCallSignedMessage (t *testing.T) {
 		t.Error("Expected uri: %s got %s", uri, r.uri)
 	}
 
-	end := make (chan bool)
+	end := make(chan bool)
 	d := Destination{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "handler",
 	}
 
-	m := struct{ Name string }{"name",}
-	so:= Sender{
+	m := struct{ Name string }{"name"}
+	so := Sender{
 		Name: "sender",
 		UUID: "suid",
 	}
 
-	handler := func (s Sender, p []byte) error {
+	handler := func(s Sender, p []byte) error {
 		log.Print("received", p)
 
-		i := struct{
+		i := struct {
 			Name string
-		}{
-
-		}
+		}{}
 
 		err = json.Unmarshal(p, &i)
 		if err != nil {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
 
-		if (m.Name != i.Name) {
+		if m.Name != i.Name {
 			t.Error("Received message validation failed: %x got %x", m, i)
 		}
 
-		if (s.Name != so.Name) {
+		if s.Name != so.Name {
 			t.Error("Received message validation failed: %x got %x", so.Name, s.Name)
 		}
 
@@ -359,15 +350,13 @@ func TestCallSignedMessage (t *testing.T) {
 	r.Listen()
 	t.Log("RPC registered and setuped")
 
-
-
-	timer := time.NewTimer(time.Second*5)
+	timer := time.NewTimer(time.Second * 5)
 
 	for {
 		select {
-		case <- r.connected:
+		case <-r.connected:
 			r.CallSigned(so, d, m)
-		case <- end:
+		case <-end:
 			return
 		case <-timer.C:
 			t.Error("No message received: failed")
@@ -377,7 +366,7 @@ func TestCallSignedMessage (t *testing.T) {
 	}
 }
 
-func TestCastSignedMessage (t *testing.T) {
+func TestCastSignedMessage(t *testing.T) {
 
 	var (
 		name  = "test-case"
@@ -390,7 +379,7 @@ func TestCastSignedMessage (t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer func (){
+	defer func() {
 		r.cleanup()
 		r.shutdown()
 	}()
@@ -398,39 +387,35 @@ func TestCastSignedMessage (t *testing.T) {
 	uri := fmt.Sprintf("amqp://guest:guest@localhost:5672")
 	r.SetURI(uri)
 
-	end := make (chan bool)
+	end := make(chan bool)
 	d := Destination{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "handler",
 	}
 
-
-	m := struct{ Name string }{"name",}
-	so:= Sender{
+	m := struct{ Name string }{"name"}
+	so := Sender{
 		Name: "sender",
 		UUID: "suid",
 	}
 
-
-	handler := func (s Sender, p []byte) error {
+	handler := func(s Sender, p []byte) error {
 		log.Print("received", p)
 
-		i := struct{
+		i := struct {
 			Name string
-		}{
-
-		}
+		}{}
 
 		err = json.Unmarshal(p, &i)
 		if err != nil {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
 
-		if (m.Name != i.Name) {
+		if m.Name != i.Name {
 			t.Error("Received message validation failed: %x got %x", m, i)
 		}
-		if (so.Name != s.Name) {
+		if so.Name != s.Name {
 			t.Error("Received message validation failed: %x got %x", so.Name, s.Name)
 		}
 
@@ -441,14 +426,14 @@ func TestCastSignedMessage (t *testing.T) {
 	r.SetHandler("handler", handler)
 	r.Listen()
 
-	timer := time.NewTimer(time.Second*5)
+	timer := time.NewTimer(time.Second * 5)
 	t.Log("RPC registered and setuped")
 
 	for {
 		select {
-		case <- r.connected:
+		case <-r.connected:
 			r.CastSigned(so, d, m)
-		case <- end:
+		case <-end:
 			return
 		case <-timer.C:
 			t.Error("No message received: failed")
@@ -458,8 +443,7 @@ func TestCastSignedMessage (t *testing.T) {
 	}
 }
 
-
-func TestCallSignedBinaryMessage (t *testing.T) {
+func TestCallSignedBinaryMessage(t *testing.T) {
 
 	var (
 		name  = "test-call-b"
@@ -472,7 +456,7 @@ func TestCallSignedBinaryMessage (t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer func (){
+	defer func() {
 		r.cleanup()
 		r.Shutdown()
 	}()
@@ -480,26 +464,26 @@ func TestCallSignedBinaryMessage (t *testing.T) {
 	uri := fmt.Sprintf("amqp://guest:guest@localhost:5672")
 	r.SetURI(uri)
 
-	end := make (chan bool)
+	end := make(chan bool)
 	d := Destination{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "handler",
 	}
 
-	m := []byte{123,125}
-	so:= Sender{
+	m := []byte{123, 125}
+	so := Sender{
 		Name: "sender",
 		UUID: "suid",
 	}
 
-	handler := func (s Sender, p []byte) error {
+	handler := func(s Sender, p []byte) error {
 		log.Print("received", p)
 
-		if (string(m) != string(p)) {
+		if string(m) != string(p) {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
-		if (so.Name != s.Name) {
+		if so.Name != s.Name {
 			t.Error("Received message validation failed: %x got %x", so.Name, s.Name)
 		}
 		end <- true
@@ -509,14 +493,14 @@ func TestCallSignedBinaryMessage (t *testing.T) {
 	r.SetHandler("handler", handler)
 	r.Listen()
 
-	timer := time.NewTimer(time.Second*5)
+	timer := time.NewTimer(time.Second * 5)
 	t.Log("RPC registered and setuped")
 
 	for {
 		select {
-		case <- r.connected:
+		case <-r.connected:
 			r.CallSignedBinary(so, d, m)
-		case <- end:
+		case <-end:
 			return
 		case <-timer.C:
 			t.Error("No message received: failed")
@@ -527,7 +511,7 @@ func TestCallSignedBinaryMessage (t *testing.T) {
 
 }
 
-func TestCastSignedBinaryMessage (t *testing.T) {
+func TestCastSignedBinaryMessage(t *testing.T) {
 
 	var (
 		name  = "test-cast-b"
@@ -540,7 +524,7 @@ func TestCastSignedBinaryMessage (t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer func (){
+	defer func() {
 		r.cleanup()
 		r.Shutdown()
 	}()
@@ -551,27 +535,27 @@ func TestCastSignedBinaryMessage (t *testing.T) {
 		t.Error("Expected uri: %s got %s", uri, r.uri)
 	}
 
-	end := make (chan bool)
+	end := make(chan bool)
 	d := Destination{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "handler",
 	}
 
-	m := []byte{123,125}
-	so:= Sender{
+	m := []byte{123, 125}
+	so := Sender{
 		Name: "sender",
 		UUID: "suid",
 	}
 
-	handler := func (s Sender, p []byte) error {
+	handler := func(s Sender, p []byte) error {
 		log.Print("received", p)
 
-		if (string(m) != string(p)) {
+		if string(m) != string(p) {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
 
-		if (so.Name != s.Name) {
+		if so.Name != s.Name {
 			t.Error("Received message validation failed: %x got %x", so.Name, s.Name)
 		}
 
@@ -582,14 +566,14 @@ func TestCastSignedBinaryMessage (t *testing.T) {
 	r.SetHandler("handler", handler)
 	r.Listen()
 
-	timer := time.NewTimer(time.Second*5)
+	timer := time.NewTimer(time.Second * 5)
 	t.Log("RPC registered and setuped")
 
 	for {
 		select {
-		case <- r.connected:
+		case <-r.connected:
 			r.CastSignedBinary(so, d, m)
-		case <- end:
+		case <-end:
 			return
 		case <-timer.C:
 			t.Error("No message received: failed")
@@ -599,8 +583,7 @@ func TestCastSignedBinaryMessage (t *testing.T) {
 	}
 }
 
-
-func TestProxyCall (t *testing.T) {
+func TestProxyCall(t *testing.T) {
 
 	var (
 		name  = "test-proxy-cl"
@@ -613,7 +596,7 @@ func TestProxyCall (t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer func (){
+	defer func() {
 		//r.cleanup()
 		r.Shutdown()
 	}()
@@ -621,22 +604,22 @@ func TestProxyCall (t *testing.T) {
 	uri := fmt.Sprintf("amqp://guest:guest@localhost:5672")
 	r.SetURI(uri)
 
-	end := make (chan bool)
+	end := make(chan bool)
 	d := Destination{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "handler",
 	}
 
 	p := Receiver{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "proxy",
 	}
 
-	m := struct{ Name string }{"name",}
+	m := struct{ Name string }{"name"}
 
-	proxy := func (s Sender, g Destination, b []byte) error {
+	proxy := func(s Sender, g Destination, b []byte) error {
 		t.Log("received in proxy", string(b), s, g)
 		log.Println(g)
 
@@ -645,21 +628,19 @@ func TestProxyCall (t *testing.T) {
 	}
 	r.SetUpstream("proxy", proxy)
 
-	h := func (s Sender, p []byte) error {
+	h := func(s Sender, p []byte) error {
 		t.Log("received", p)
 
-		i := struct{
+		i := struct {
 			Name string
-		}{
-
-		}
+		}{}
 
 		err = json.Unmarshal(p, &i)
 		if err != nil {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
 
-		if (m.Name != i.Name) {
+		if m.Name != i.Name {
 			t.Error("Received message validation failed: %x got %x", m, i)
 		}
 
@@ -670,14 +651,14 @@ func TestProxyCall (t *testing.T) {
 
 	r.Listen()
 
-	timer := time.NewTimer(time.Second*10)
+	timer := time.NewTimer(time.Second * 10)
 	t.Log("RPC registered and setuped")
 
 	for {
 		select {
-		case <- r.connected:
+		case <-r.connected:
 			r.ProxyCall(d, p, m)
-		case <- end:
+		case <-end:
 			return
 		case <-timer.C:
 			t.Error("No message received: failed")
@@ -687,7 +668,7 @@ func TestProxyCall (t *testing.T) {
 	}
 }
 
-func TestProxyCast (t *testing.T) {
+func TestProxyCast(t *testing.T) {
 
 	var (
 		name  = "test-proxy-ct"
@@ -700,7 +681,7 @@ func TestProxyCast (t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer func (){
+	defer func() {
 		r.cleanup()
 		r.Shutdown()
 	}()
@@ -708,21 +689,21 @@ func TestProxyCast (t *testing.T) {
 	uri := fmt.Sprintf("amqp://guest:guest@localhost:5672")
 	r.SetURI(uri)
 
-	end := make (chan bool)
+	end := make(chan bool)
 	d := Destination{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "handler",
 	}
 	p := Receiver{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "proxy",
 	}
 
-	m := struct{ Name string }{"name",}
+	m := struct{ Name string }{"name"}
 
-	proxy := func (s Sender, d Destination, b []byte) error {
+	proxy := func(s Sender, d Destination, b []byte) error {
 		t.Log("received in proxy", b)
 		r.CallBinary(d, b)
 		return nil
@@ -730,20 +711,18 @@ func TestProxyCast (t *testing.T) {
 
 	r.SetUpstream("proxy", proxy)
 
-	handler := func (s Sender, p []byte) error {
+	handler := func(s Sender, p []byte) error {
 		t.Log("received", p)
-		i := struct{
+		i := struct {
 			Name string
-		}{
-
-		}
+		}{}
 
 		err = json.Unmarshal(p, &i)
 		if err != nil {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
 
-		if (m.Name != i.Name) {
+		if m.Name != i.Name {
 			t.Error("Received message validation failed: %x got %x", m, i)
 		}
 		end <- true
@@ -753,14 +732,14 @@ func TestProxyCast (t *testing.T) {
 
 	r.Listen()
 
-	timer := time.NewTimer(time.Second*20)
+	timer := time.NewTimer(time.Second * 20)
 	t.Log("RPC registered and setuped")
 
 	for {
 		select {
-		case <- r.connected:
+		case <-r.connected:
 			r.ProxyCast(d, p, m)
-		case <- end:
+		case <-end:
 			return
 		case <-timer.C:
 			t.Error("No message received: failed")
@@ -770,7 +749,7 @@ func TestProxyCast (t *testing.T) {
 	}
 }
 
-func TestProxyCallBinary (t *testing.T) {
+func TestProxyCallBinary(t *testing.T) {
 
 	var (
 		name  = "test-proxy-clb"
@@ -783,7 +762,7 @@ func TestProxyCallBinary (t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer func (){
+	defer func() {
 		r.cleanup()
 		r.Shutdown()
 	}()
@@ -791,31 +770,31 @@ func TestProxyCallBinary (t *testing.T) {
 	uri := fmt.Sprintf("amqp://guest:guest@localhost:5672")
 	r.SetURI(uri)
 
-	end := make (chan bool)
+	end := make(chan bool)
 	d := Destination{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "handler",
 	}
 	p := Receiver{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "proxy",
 	}
 
-	m := []byte{123,125}
+	m := []byte{123, 125}
 
-	proxy := func (s Sender, d Destination, b []byte) error {
+	proxy := func(s Sender, d Destination, b []byte) error {
 		r.CallBinary(d, b)
 		return nil
 	}
 
 	r.SetUpstream("proxy", proxy)
 
-	handler := func (s Sender, p []byte) error {
+	handler := func(s Sender, p []byte) error {
 		t.Log("received", p)
 
-		if (string(m) != string(p)) {
+		if string(m) != string(p) {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
 		end <- true
@@ -825,14 +804,14 @@ func TestProxyCallBinary (t *testing.T) {
 
 	r.Listen()
 
-	timer := time.NewTimer(time.Second*20)
+	timer := time.NewTimer(time.Second * 20)
 	t.Log("RPC registered and setuped")
 
 	for {
 		select {
-		case <- r.connected:
+		case <-r.connected:
 			r.ProxyCallBinary(d, p, m)
-		case <- end:
+		case <-end:
 			return
 		case <-timer.C:
 			t.Error("No message received: failed")
@@ -842,7 +821,7 @@ func TestProxyCallBinary (t *testing.T) {
 	}
 }
 
-func TestProxyCastBinary (t *testing.T) {
+func TestProxyCastBinary(t *testing.T) {
 
 	var (
 		name  = "test-proxy-ctb"
@@ -855,7 +834,7 @@ func TestProxyCastBinary (t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer func (){
+	defer func() {
 		r.cleanup()
 		r.Shutdown()
 	}()
@@ -863,31 +842,31 @@ func TestProxyCastBinary (t *testing.T) {
 	uri := fmt.Sprintf("amqp://guest:guest@localhost:5672")
 	r.SetURI(uri)
 
-	end := make (chan bool)
+	end := make(chan bool)
 	d := Destination{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "handler",
 	}
 	p := Receiver{
-		Name: name,
-		UUID: uuid,
+		Name:    name,
+		UUID:    uuid,
 		Handler: "proxy",
 	}
 
-	m := []byte{123,125}
+	m := []byte{123, 125}
 
-	proxy := func (s Sender, d Destination, b []byte) error {
+	proxy := func(s Sender, d Destination, b []byte) error {
 		r.CastBinary(d, b)
 		return nil
 	}
 
 	r.SetUpstream("proxy", proxy)
 
-	handler := func (s Sender, p []byte) error {
+	handler := func(s Sender, p []byte) error {
 		t.Log("received", p)
 
-		if (string(m) != string(p)) {
+		if string(m) != string(p) {
 			t.Error("Received message validation failed: %x got %x", m, p)
 		}
 		end <- true
@@ -897,14 +876,14 @@ func TestProxyCastBinary (t *testing.T) {
 
 	r.Listen()
 
-	timer := time.NewTimer(time.Second*20)
+	timer := time.NewTimer(time.Second * 20)
 	t.Log("RPC registered and setuped")
 
 	for {
 		select {
-		case <- r.connected:
+		case <-r.connected:
 			r.ProxyCastBinary(d, p, m)
-		case <- end:
+		case <-end:
 			return
 		case <-timer.C:
 			t.Error("No message received: failed")

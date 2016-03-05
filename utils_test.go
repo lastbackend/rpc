@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestSenderSign (t *testing.T) {
+func TestSenderSign(t *testing.T) {
 	s := Sender{
 		Name: "demo",
 		UUID: "uuid",
@@ -21,15 +21,15 @@ func TestSenderSign (t *testing.T) {
 		0, 0, 0, 0,
 	}
 
-	if string(sign) != string(data)  {
+	if string(sign) != string(data) {
 		t.Error("Failed signing sender: expected %x, got %x", data, sign)
 	}
 }
 
-func TestProxySign (t *testing.T) {
+func TestProxySign(t *testing.T) {
 	p := Receiver{
-		Name: "demo",
-		UUID: "uuid",
+		Name:    "demo",
+		UUID:    "uuid",
 		Handler: "handler",
 	}
 
@@ -48,15 +48,15 @@ func TestProxySign (t *testing.T) {
 		0, 0, 0, 0, 0, 0, 0, 0,
 	}
 
-	if string(sign) != string(data)  {
+	if string(sign) != string(data) {
 		t.Error("Failed signing proxy: expected %x, got %x", data, sign)
 	}
 }
 
-func TestReceiverSign (t *testing.T) {
+func TestReceiverSign(t *testing.T) {
 	r := Destination{
-		Name: "demo",
-		UUID: "uuid",
+		Name:    "demo",
+		UUID:    "uuid",
 		Handler: "handler",
 	}
 
@@ -75,12 +75,12 @@ func TestReceiverSign (t *testing.T) {
 		0, 0, 0, 0, 0, 0, 0, 0,
 	}
 
-	if string(sign) != string(data)  {
+	if string(sign) != string(data) {
 		t.Error("Failed signing proxy: expected %x, got %x", data, sign)
 	}
 }
 
-func TestEncode (t *testing.T) {
+func TestEncode(t *testing.T) {
 
 	r := RPC{}
 	r.token = "token"
@@ -90,18 +90,15 @@ func TestEncode (t *testing.T) {
 		UUID: "uuid",
 	}
 
-
 	d := Destination{
-		Name: "demo",
-		UUID: "uuid",
+		Name:    "demo",
+		UUID:    "uuid",
 		Handler: "handler",
 	}
 
 	p := Receiver{}
 
-
-
-	body := r.encode(s, d, p, []byte{123,125})
+	body := r.encode(s, d, p, []byte{123, 125})
 
 	data := []byte{
 
@@ -118,7 +115,6 @@ func TestEncode (t *testing.T) {
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0,
-
 
 		100, 101, 109, 111, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -151,13 +147,12 @@ func TestEncode (t *testing.T) {
 		0, 0, 0, 0,
 
 		123, 125,
-
 	}
 
 	t.Log(body)
 	t.Log(data)
 
-	if string(body) != string(data)  {
+	if string(body) != string(data) {
 		t.Error("Failed signing proxy: expected %x, got %x", data, body)
 	}
 }

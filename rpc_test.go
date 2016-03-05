@@ -1,10 +1,9 @@
 package rpc
 
 import (
-	"testing"
 	"fmt"
+	"testing"
 )
-
 
 func TestRegister(t *testing.T) {
 
@@ -20,7 +19,7 @@ func TestRegister(t *testing.T) {
 		t.Error("Register APP error", err)
 	}
 
-	defer func (){
+	defer func() {
 		r.cleanup()
 		r.shutdown()
 	}()
@@ -45,7 +44,7 @@ func TestRegister(t *testing.T) {
 
 	r.Listen()
 	select {
-	case <- r.connected:
+	case <-r.connected:
 		return
 	}
 
