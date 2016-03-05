@@ -86,18 +86,16 @@ func (r *RPC) cast(s Sender, d Destination, p Receiver, data []byte) error {
 	return r.publish(false, s, d, p, data)
 }
 
-
 func (r *RPC) publish(call bool, s Sender, d Destination, p Receiver, data []byte) error {
 
 	body := r.encode(s, d, p, data)
 
-	log.Printf("PRC: publish to %s:%s, dest: %s:%s, send: %dB body (%s)", d.Name, d.UUID, p.Name, p.UUID, len(body), body)
+	log.Printf("PRC: publish to %s:%s, proxy: %s:%s, send: %dB body (%s)", d.Name, d.UUID, p.Name, p.UUID, len(body), body)
 
 	channel, err := r.conn.Channel()
 	if err != nil {
 		return fmt.Errorf("Channel: %s", err)
 	}
-
 
 	exchange := fmt.Sprintf("%s:%s", d.Name, "direct")
 	if d.All {
@@ -129,6 +127,8 @@ func (r *RPC) publish(call bool, s Sender, d Destination, p Receiver, data []byt
 		bind += ":cast"
 	}
 
+	log.Println("RPC: publish to exchange:", exchange, bind)
+
 	if err := channel.Publish(exchange, bind, false, false, amqp.Publishing{
 		ContentType: "application/json",
 		Body:        body,
@@ -137,6 +137,7 @@ func (r *RPC) publish(call bool, s Sender, d Destination, p Receiver, data []byt
 		return fmt.Errorf("Exchange Publish: %s", err)
 	}
 
+	log.Println("RPC: published")
 	return nil
 }
 
@@ -269,6 +270,13 @@ func (r *RPC) handle(msgs <-chan amqp.Delivery, done chan error) {
 		s := Sender{}
 		s.Name = string(d.Body[32:48])
 		s.UUID = string(d.Body[48:84])
+		if strings.Index(string(s.Name), "\x00") >= 0 {
+			s.Name = s.Name[:strings.Index(string(s.Name), "\x00")]
+		}
+		if strings.Index(string(s.UUID), "\x00") >= 0 {
+			s.UUID = s.UUID[:strings.Index(string(s.UUID), "\x00")]
+		}
+
 
 		if strings.Index(string(s.Name), "\x00") >= 0 {
 			s.Name = s.Name[:strings.Index(string(s.Name), "\x00")]
@@ -283,6 +291,9 @@ func (r *RPC) handle(msgs <-chan amqp.Delivery, done chan error) {
 		if strings.Index(string(e.Name), "\x00") >= 0 {
 			e.Name = e.Name[:strings.Index(string(e.Name), "\x00")]
 		}
+		if strings.Index(string(e.UUID), "\x00") >= 0 {
+			e.UUID = e.UUID[:strings.Index(string(e.UUID), "\x00")]
+		}
 		if strings.Index(string(e.Handler), "\x00") >= 0 {
 			e.Handler = e.Handler[:strings.Index(string(e.Handler), "\x00")]
 		}
@@ -296,23 +307,27 @@ func (r *RPC) handle(msgs <-chan amqp.Delivery, done chan error) {
 		if strings.Index(string(p.Name), "\x00") >= 0 {
 			p.Name = p.Name[:strings.Index(string(p.Name), "\x00")]
 		}
+		if strings.Index(string(p.UUID), "\x00") >= 0 {
+			p.UUID = p.UUID[:strings.Index(string(p.UUID), "\x00")]
+		}
 		if strings.Index(string(p.Handler), "\x00") >= 0 {
 			p.Handler = p.Handler[:strings.Index(string(p.Handler), "\x00")]
 		}
 
 		data := d.Body[256:len(d.Body)]
-
-		if p.Name != "" {
-			log.Println("PRC: need upstream", d.ConsumerTag)
-			_, ok := r.upstreams[p.Handler]
-
-			if !ok {
-				log.Println("RPC: upstream not found", p.Handler)
-				d.Ack(false)
-				continue
+		go func() {
+			if p.Name == "" {
+				return
 			}
+				log.Println("PRC: need upstream", d.ConsumerTag)
+				_, ok := r.upstreams[p.Handler]
 
-			go func() {
+				if !ok {
+					log.Println("RPC: upstream not found", p.Handler)
+					d.Ack(false)
+					return
+				}
+
 				concurrent++
 				log.Println("Call upstream")
 				err := r.upstreams[p.Handler](s, e, data)
@@ -327,19 +342,22 @@ func (r *RPC) handle(msgs <-chan amqp.Delivery, done chan error) {
 				if concurrent == 0 {
 					last <- true
 				}
-			}()
-			continue
-		}
 
-		log.Println("PRC: send to handler", d.ConsumerTag)
-		_, ok := r.handlers[e.Handler]
-		if !ok {
-			log.Println("RPC: handler not found", e.Handler)
-			d.Ack(false)
-			continue
-		}
+		}()
 
 		go func() {
+
+			if p.Name != "" {
+				return
+			}
+
+			log.Println("PRC: send to handler", d.ConsumerTag)
+			_, ok := r.handlers[e.Handler]
+			if !ok {
+				log.Println("RPC: handler not found", e.Handler)
+				d.Ack(false)
+				return
+			}
 			concurrent++
 			log.Println("call handler")
 			err := r.handlers[e.Handler](s, data)

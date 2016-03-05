@@ -15,6 +15,7 @@ func TestCallMessage (t *testing.T) {
 		name  = "test-call"
 		uuid  = "uuid"
 		token = "token"
+		a = 0
 	)
 
 	r, err := Register(name, uuid, token)
@@ -44,6 +45,13 @@ func TestCallMessage (t *testing.T) {
 
 	handler := func (s Sender, p []byte) error {
 		log.Print("received", p)
+
+		if a <= 4 {
+
+			r.Call(d, m)
+			a++
+			return nil
+		}
 
 		i := struct{
 			Name string
@@ -597,7 +605,7 @@ func TestProxyCall (t *testing.T) {
 	var (
 		name  = "test-proxy-cl"
 		uuid  = "uuid"
-		token = "token"
+		token = "G&vW8ag#2q8MU&h78@Gu^pjtg@R5CPcd"
 	)
 
 	r, err := Register(name, uuid, token)
@@ -606,7 +614,7 @@ func TestProxyCall (t *testing.T) {
 	}
 
 	defer func (){
-		r.cleanup()
+		//r.cleanup()
 		r.Shutdown()
 	}()
 
@@ -619,6 +627,7 @@ func TestProxyCall (t *testing.T) {
 		UUID: uuid,
 		Handler: "handler",
 	}
+
 	p := Receiver{
 		Name: name,
 		UUID: uuid,
@@ -627,15 +636,16 @@ func TestProxyCall (t *testing.T) {
 
 	m := struct{ Name string }{"name",}
 
-	proxy := func (s Sender, d Destination, b []byte) error {
-		t.Log("received in proxy", b)
-		r.CallBinary(d, b)
+	proxy := func (s Sender, g Destination, b []byte) error {
+		t.Log("received in proxy", string(b), s, g)
+		log.Println(g)
+
+		r.CallBinary(g, b)
 		return nil
 	}
-
 	r.SetUpstream("proxy", proxy)
 
-	handler := func (s Sender, p []byte) error {
+	h := func (s Sender, p []byte) error {
 		t.Log("received", p)
 
 		i := struct{
@@ -656,11 +666,11 @@ func TestProxyCall (t *testing.T) {
 		end <- true
 		return nil
 	}
-	r.SetHandler("handler", handler)
+	r.SetHandler("handler", h)
 
 	r.Listen()
 
-	timer := time.NewTimer(time.Second*20)
+	timer := time.NewTimer(time.Second*10)
 	t.Log("RPC registered and setuped")
 
 	for {

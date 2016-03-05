@@ -41,6 +41,7 @@ func (r *RPC) Cast (d Destination, message interface{}) error {
 
 // CallBinary - send binary message with delivery guarantee
 func (r *RPC) CallBinary (d Destination, message []byte) error {
+
 	err := r.call(Sender{r.name, r.uuid}, d, Receiver{}, message);
 	if err != nil {
 		return err
