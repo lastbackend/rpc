@@ -127,6 +127,7 @@ func (r *RPC) publish(call bool, s Sender, d Destination, p Receiver, data []byt
 		bind += ":cast"
 	}
 
+	bind = strings.ToLower(bind)
 	log.Println("RPC: publish to exchange:", exchange, bind)
 
 	if err := channel.Publish(exchange, bind, false, false, amqp.Publishing{
@@ -357,6 +358,7 @@ func (r *RPC) handle(msgs <-chan amqp.Delivery, done chan error) {
 				d.Ack(false)
 				return
 			}
+
 			concurrent++
 			log.Println("call handler")
 			err := r.handlers[e.Handler](s, data)
