@@ -88,7 +88,7 @@ func (r *RPC) cast(s Sender, d Destination, p Receiver, data []byte) error {
 
 func (r *RPC) publish(call bool, s Sender, d Destination, p Receiver, data []byte) error {
 
-	body := r.encode(s, d, p, data)
+	body, _ := r.encode(s, d, p, data)
 
 	log.Printf("PRC: publish to %s:%s, proxy: %s:%s, send: %dB body (%s)", d.Name, d.UUID, p.Name, p.UUID, len(body), body)
 
@@ -257,64 +257,13 @@ func (r *RPC) handle(msgs <-chan amqp.Delivery, done chan error) {
 	for d := range msgs {
 
 		log.Println("RPC: message from:", d.DeliveryTag, d.ConsumerTag, string(d.Body))
-		// validate token
-		token := string(d.Body[0:32])
-		if strings.Index(string(token), "\x00") >= 0 {
-			token = token[:strings.Index(string(token), "\x00")]
-		}
 
-		if r.token != token {
-			log.Println("RPC: token verification failed")
+		s, e, p, data, err := r.decode(d.Body)
+		if err != nil {
+			log.Println("RPC: message parsing failed: ", err)
 			d.Ack(false)
 		}
-		// parse sender information
-		s := Sender{}
-		s.Name = string(d.Body[32:48])
-		s.UUID = string(d.Body[48:84])
-		if strings.Index(string(s.Name), "\x00") >= 0 {
-			s.Name = s.Name[:strings.Index(string(s.Name), "\x00")]
-		}
-		if strings.Index(string(s.UUID), "\x00") >= 0 {
-			s.UUID = s.UUID[:strings.Index(string(s.UUID), "\x00")]
-		}
 
-		if strings.Index(string(s.Name), "\x00") >= 0 {
-			s.Name = s.Name[:strings.Index(string(s.Name), "\x00")]
-		}
-
-		// parse destination information
-		e := Destination{}
-		e.Name = string(d.Body[84:100])
-		e.UUID = string(d.Body[100:136])
-		e.Handler = string(d.Body[136:152])
-
-		if strings.Index(string(e.Name), "\x00") >= 0 {
-			e.Name = e.Name[:strings.Index(string(e.Name), "\x00")]
-		}
-		if strings.Index(string(e.UUID), "\x00") >= 0 {
-			e.UUID = e.UUID[:strings.Index(string(e.UUID), "\x00")]
-		}
-		if strings.Index(string(e.Handler), "\x00") >= 0 {
-			e.Handler = e.Handler[:strings.Index(string(e.Handler), "\x00")]
-		}
-
-		// parse receiver information
-		p := Receiver{}
-		p.Name = string(d.Body[152:168])
-		p.UUID = string(d.Body[168:204])
-		p.Handler = string(d.Body[204:220])
-
-		if strings.Index(string(p.Name), "\x00") >= 0 {
-			p.Name = p.Name[:strings.Index(string(p.Name), "\x00")]
-		}
-		if strings.Index(string(p.UUID), "\x00") >= 0 {
-			p.UUID = p.UUID[:strings.Index(string(p.UUID), "\x00")]
-		}
-		if strings.Index(string(p.Handler), "\x00") >= 0 {
-			p.Handler = p.Handler[:strings.Index(string(p.Handler), "\x00")]
-		}
-
-		data := d.Body[256:len(d.Body)]
 		go func() {
 			if p.Name == "" {
 				return
