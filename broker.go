@@ -278,10 +278,7 @@ func (r *RPC) handle(msgs <-chan amqp.Delivery, done chan error) {
 			}
 
 			concurrent++
-			log.Println("Call upstream")
 			err := r.upstreams[p.Handler](s, e, data)
-			log.Println("Upstream called")
-
 			if err != nil {
 				log.Println("RPC: Proxy error:", err)
 			}
@@ -309,10 +306,7 @@ func (r *RPC) handle(msgs <-chan amqp.Delivery, done chan error) {
 			}
 
 			concurrent++
-			log.Println("call handler")
 			err := r.handlers[e.Handler](s, data)
-			log.Println("call executed")
-
 			if err != nil {
 				log.Println("RPC: Proxy error:", err)
 			}
