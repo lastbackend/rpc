@@ -221,10 +221,6 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.name+":cast", r.exchanges.topic, false, nil); err != nil {
-		return fmt.Errorf("Queue Bind: %s", err)
-	}
-
 	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid+":cast", r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
