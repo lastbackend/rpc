@@ -150,7 +150,7 @@ func (r *RPC) subscribe() error {
 	r.exchanges.topic = fmt.Sprintf("%s:%s", r.name, "topic")
 
 	r.queues.direct = fmt.Sprintf("%s:%s", r.name, "direct")
-	r.queues.topic = fmt.Sprintf("%s:%s", r.name, "topic")
+	r.queues.topic = fmt.Sprintf("%s:%s", r.uuid, "topic")
 
 	// Get hostname for register current instance
 	log.Printf("RPC: Create new consumer: %s", r.name)
@@ -208,11 +208,11 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = r.channels.direct.QueueBind(r.queues.direct, r.uuid+":call", r.exchanges.topic, false, nil); err != nil {
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid+":cast", r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = r.channels.direct.QueueBind(r.queues.direct, r.name+":call", r.exchanges.topic, false, nil); err != nil {
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.name+":cast", r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
@@ -221,13 +221,18 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid+":cast", r.exchanges.direct, false, nil); err != nil {
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.name+":cast", r.exchanges.topic, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.name+":cast", r.exchanges.direct, false, nil); err != nil {
+	if err = r.channels.direct.QueueBind(r.queues.direct, r.uuid+":call", r.exchanges.topic, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
+
+	if err = r.channels.direct.QueueBind(r.queues.direct, r.name+":call", r.exchanges.topic, false, nil); err != nil {
+		return fmt.Errorf("Queue Bind: %s", err)
+	}
+
 
 	messages, err := r.channels.direct.Consume(r.queues.direct, r.queues.direct, false, false, false, false, nil)
 	if err != nil {
