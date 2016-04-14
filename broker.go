@@ -150,7 +150,7 @@ func (r *RPC) subscribe() error {
 	r.exchanges.topic = fmt.Sprintf("%s:%s", r.name, "topic")
 
 	r.queues.direct = fmt.Sprintf("%s:%s", r.name, "direct")
-	r.queues.topic = fmt.Sprintf("%s:%s", r.uuid, "topic")
+	r.queues.topic = fmt.Sprintf("%s:%s:%s",r.name, r.uuid, "topic")
 
 	// Get hostname for register current instance
 	log.Printf("RPC: Create new consumer: %s", r.name)
