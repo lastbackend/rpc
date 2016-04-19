@@ -225,15 +225,6 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = r.channels.direct.QueueBind(r.queues.direct, r.uuid+":call", r.exchanges.topic, false, nil); err != nil {
-		return fmt.Errorf("Queue Bind: %s", err)
-	}
-
-	if err = r.channels.direct.QueueBind(r.queues.direct, r.name+":call", r.exchanges.topic, false, nil); err != nil {
-		return fmt.Errorf("Queue Bind: %s", err)
-	}
-
-
 	messages, err := r.channels.direct.Consume(r.queues.direct, r.queues.direct, false, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("Queue Consume: %s", err)
