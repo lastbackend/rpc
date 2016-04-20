@@ -30,6 +30,7 @@ type RPC struct {
 }
 
 type channels struct {
+	common *amqp.Channel
 	direct *amqp.Channel
 	topic  *amqp.Channel
 }
@@ -38,6 +39,7 @@ type exchanges struct {
 	topic  string
 }
 type queues struct {
+	common string
 	direct string
 	topic  string
 }

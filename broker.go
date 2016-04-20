@@ -149,11 +149,24 @@ func (r *RPC) subscribe() error {
 	r.exchanges.direct = fmt.Sprintf("%s:%s", r.name, "direct")
 	r.exchanges.topic = fmt.Sprintf("%s:%s", r.name, "topic")
 
+	r.queues.common = fmt.Sprintf("%s:%s", r.name, "direct")
 	r.queues.direct = fmt.Sprintf("%s:%s:%s", r.name, r.uuid, "direct")
 	r.queues.topic = fmt.Sprintf("%s:%s:%s", r.name, r.uuid, "topic")
 
 	// Get hostname for register current instance
 	log.Printf("RPC: Create new consumer: %s", r.name)
+
+	r.channels.common, err = r.conn.Channel()
+	if err != nil {
+		log.Println("Channel:", err)
+		return err
+	}
+
+	err = r.channels.common.Qos(r.limit, 0, false)
+	if err != nil {
+		log.Println("Channel:", err)
+		return err
+	}
 
 	r.channels.direct, err = r.conn.Channel()
 	if err != nil {
@@ -189,6 +202,11 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Exchange Declare: %s", err)
 	}
 
+	// create channel queue to route messages with round-robin
+	if _, err := r.channels.common.QueueDeclare(r.queues.common, true, false, false, false, nil); err != nil {
+		return fmt.Errorf("Queue Declare: %s", err)
+	}
+
 	// create direct queue for guarantee delivery messages
 	if _, err := r.channels.direct.QueueDeclare(r.queues.direct, true, false, false, false, nil); err != nil {
 		return fmt.Errorf("Queue Declare: %s", err)
@@ -200,23 +218,24 @@ func (r *RPC) subscribe() error {
 	}
 
 	// create bindings for direct messages
+	if err = r.channels.common.QueueBind(r.queues.common, r.name+":call", r.exchanges.direct, false, nil); err != nil {
+		return fmt.Errorf("Queue Bind: %s", err)
+	}
+
+	// create bindings for direct messages
 	if err = r.channels.direct.QueueBind(r.queues.direct, r.uuid+":call", r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = r.channels.direct.QueueBind(r.queues.direct, r.name+":call", r.exchanges.direct, false, nil); err != nil {
-		return fmt.Errorf("Queue Bind: %s", err)
-	}
-
+	// create bindings for topic messages
 	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid+":cast", r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.name+":cast", r.exchanges.direct, false, nil); err != nil {
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.name+":cast", r.exchanges.topic, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	// create bindings for topic messages
 	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid+":cast", r.exchanges.topic, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
@@ -225,18 +244,23 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	messages, err := r.channels.direct.Consume(r.queues.direct, r.queues.direct, false, false, false, false, nil)
+	mc, err := r.channels.common.Consume(r.queues.common, r.queues.common, false, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("Queue Consume: %s", err)
 	}
+	go r.handle(mc, done)
 
-	streams, err := r.channels.topic.Consume(r.queues.topic, r.queues.topic, false, false, false, false, nil)
+	md, err := r.channels.direct.Consume(r.queues.direct, r.queues.direct, false, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("Queue Consume: %s", err)
 	}
+	go r.handle(md, done)
 
-	go r.handle(messages, done)
-	go r.handle(streams, done)
+	mt, err := r.channels.topic.Consume(r.queues.topic, r.queues.topic, false, false, false, false, nil)
+	if err != nil {
+		return fmt.Errorf("Queue Consume: %s", err)
+	}
+	go r.handle(mt, done)
 
 	return nil
 }
