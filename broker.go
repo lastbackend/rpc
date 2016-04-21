@@ -228,10 +228,6 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Queue Declare: %s", err)
 	}
 
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid + ":cast", r.exchanges.direct, false, nil); err != nil {
-		return fmt.Errorf("Queue Bind: %s", err)
-	}
-
 	if err = r.channels.topic.QueueBind(r.queues.topic, r.name + ":cast", r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
@@ -252,6 +248,10 @@ func (r *RPC) subscribe() error {
 
 	if r.uuid == "" {
 		return nil
+	}
+
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid + ":cast", r.exchanges.direct, false, nil); err != nil {
+		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
 	// create direct queue for guarantee delivery messages
