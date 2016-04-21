@@ -211,7 +211,7 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Queue Declare: %s", err)
 	}
 
-	if err = r.channels.common.QueueBind(r.queues.common, r.name+":call", r.exchanges.direct, false, nil); err != nil {
+	if err = r.channels.common.QueueBind(r.queues.common, strings.ToLower(r.name+":call"), r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
@@ -228,11 +228,11 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Queue Declare: %s", err)
 	}
 
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.name + ":cast", r.exchanges.direct, false, nil); err != nil {
+	if err = r.channels.topic.QueueBind(r.queues.topic, strings.ToLower(r.name + ":cast"), r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.name + ":cast", r.exchanges.topic, false, nil); err != nil {
+	if err = r.channels.topic.QueueBind(r.queues.topic, strings.ToLower(r.name + ":cast"), r.exchanges.topic, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
@@ -250,7 +250,7 @@ func (r *RPC) subscribe() error {
 		return nil
 	}
 
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid + ":cast", r.exchanges.direct, false, nil); err != nil {
+	if err = r.channels.topic.QueueBind(r.queues.topic, strings.ToLower(r.uuid + ":cast"), r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
@@ -260,7 +260,7 @@ func (r *RPC) subscribe() error {
 	}
 
 	// create bindings for direct messages
-	if err = r.channels.direct.QueueBind(r.queues.direct, r.uuid + ":call", r.exchanges.direct, false, nil); err != nil {
+	if err = r.channels.direct.QueueBind(r.queues.direct, strings.ToLower(r.uuid + ":call"), r.exchanges.direct, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
