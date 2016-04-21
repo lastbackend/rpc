@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/streadway/amqp"
+	"github.com/satori/go.uuid"
 )
 
 func (r *RPC) listen() {
@@ -146,12 +147,14 @@ func (r *RPC) subscribe() error {
 	var err error
 	var done = make(chan error)
 
+	u := uuid.NewV4()
+
 	r.exchanges.direct = fmt.Sprintf("%s:%s", r.name, "direct")
 	r.exchanges.topic = fmt.Sprintf("%s:%s", r.name, "topic")
 
 	r.queues.common = fmt.Sprintf("%s:%s", r.name, "direct")
 	r.queues.direct = fmt.Sprintf("%s:%s:%s", r.name, r.uuid, "direct")
-	r.queues.topic = fmt.Sprintf("%s:%s:%s", r.name, r.uuid, "topic")
+	r.queues.topic = fmt.Sprintf("%s:%s:%s", r.name,  u.String(), "topic")
 
 	// Get hostname for register current instance
 	log.Printf("RPC: Create new consumer: %s", r.name)
@@ -230,10 +233,6 @@ func (r *RPC) subscribe() error {
 	}
 
 	if err = r.channels.topic.QueueBind(r.queues.topic, r.name + ":cast", r.exchanges.direct, false, nil); err != nil {
-		return fmt.Errorf("Queue Bind: %s", err)
-	}
-
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid + ":cast", r.exchanges.topic, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
