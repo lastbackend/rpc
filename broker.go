@@ -202,45 +202,13 @@ func (r *RPC) subscribe() error {
 		return fmt.Errorf("Exchange Declare: %s", err)
 	}
 
+
 	// create channel queue to route messages with round-robin
 	if _, err := r.channels.common.QueueDeclare(r.queues.common, true, false, false, false, nil); err != nil {
 		return fmt.Errorf("Queue Declare: %s", err)
 	}
 
-	// create direct queue for guarantee delivery messages
-	if _, err := r.channels.direct.QueueDeclare(r.queues.direct, true, false, false, false, nil); err != nil {
-		return fmt.Errorf("Queue Declare: %s", err)
-	}
-
-	// create topic queue for non guarantee delivery messages
-	if _, err := r.channels.topic.QueueDeclare(r.queues.topic, true, true, false, false, nil); err != nil {
-		return fmt.Errorf("Queue Declare: %s", err)
-	}
-
-	// create bindings for direct messages
 	if err = r.channels.common.QueueBind(r.queues.common, r.name+":call", r.exchanges.direct, false, nil); err != nil {
-		return fmt.Errorf("Queue Bind: %s", err)
-	}
-
-	// create bindings for direct messages
-	if err = r.channels.direct.QueueBind(r.queues.direct, r.uuid+":call", r.exchanges.direct, false, nil); err != nil {
-		return fmt.Errorf("Queue Bind: %s", err)
-	}
-
-	// create bindings for topic messages
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid+":cast", r.exchanges.direct, false, nil); err != nil {
-		return fmt.Errorf("Queue Bind: %s", err)
-	}
-
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.name+":cast", r.exchanges.topic, false, nil); err != nil {
-		return fmt.Errorf("Queue Bind: %s", err)
-	}
-
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid+":cast", r.exchanges.topic, false, nil); err != nil {
-		return fmt.Errorf("Queue Bind: %s", err)
-	}
-
-	if err = r.channels.topic.QueueBind(r.queues.topic, r.name+":cast", r.exchanges.topic, false, nil); err != nil {
 		return fmt.Errorf("Queue Bind: %s", err)
 	}
 
@@ -250,17 +218,60 @@ func (r *RPC) subscribe() error {
 	}
 	go r.handle(mc, done)
 
-	md, err := r.channels.direct.Consume(r.queues.direct, r.queues.direct, false, false, false, false, nil)
-	if err != nil {
-		return fmt.Errorf("Queue Consume: %s", err)
+
+
+	// create topic queue for non guarantee delivery messages
+	if _, err := r.channels.topic.QueueDeclare(r.queues.topic, true, true, false, false, nil); err != nil {
+		return fmt.Errorf("Queue Declare: %s", err)
 	}
-	go r.handle(md, done)
+
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid + ":cast", r.exchanges.direct, false, nil); err != nil {
+		return fmt.Errorf("Queue Bind: %s", err)
+	}
+
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.name + ":cast", r.exchanges.direct, false, nil); err != nil {
+		return fmt.Errorf("Queue Bind: %s", err)
+	}
+
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.uuid + ":cast", r.exchanges.topic, false, nil); err != nil {
+		return fmt.Errorf("Queue Bind: %s", err)
+	}
+
+	if err = r.channels.topic.QueueBind(r.queues.topic, r.name + ":cast", r.exchanges.topic, false, nil); err != nil {
+		return fmt.Errorf("Queue Bind: %s", err)
+	}
+
 
 	mt, err := r.channels.topic.Consume(r.queues.topic, r.queues.topic, false, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("Queue Consume: %s", err)
 	}
 	go r.handle(mt, done)
+
+
+	// = end topic declaration
+
+	if r.uuid == "" {
+		return nil
+	}
+
+	// create direct queue for guarantee delivery messages
+	if _, err := r.channels.direct.QueueDeclare(r.queues.direct, true, false, false, false, nil); err != nil {
+		return fmt.Errorf("Queue Declare: %s", err)
+	}
+
+	// create bindings for direct messages
+	if err = r.channels.direct.QueueBind(r.queues.direct, r.uuid + ":call", r.exchanges.direct, false, nil); err != nil {
+		return fmt.Errorf("Queue Bind: %s", err)
+	}
+
+	md, err := r.channels.direct.Consume(r.queues.direct, r.queues.direct, false, false, false, false, nil)
+	if err != nil {
+		return fmt.Errorf("Queue Consume: %s", err)
+	}
+	go r.handle(md, done)
+
+
 
 	return nil
 }
@@ -278,6 +289,7 @@ func (r *RPC) handle(msgs <-chan amqp.Delivery, done chan error) {
 		if err != nil {
 			log.Println("RPC: message parsing failed: ", err)
 			d.Ack(false)
+			continue
 		}
 
 		go func() {

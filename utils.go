@@ -128,6 +128,10 @@ func (r *RPC) decode(data []byte) (Sender, Destination, Receiver, []byte, error)
 	d := Destination{}
 	p := Receiver{}
 
+	if len(data) == 0 {
+		return s, d, p, []byte{}, errors.New("Body is empty")
+	}
+
 	tc, err := r.parseInt(data[0:2], 2)
 	if err != nil {
 		log.Error("Parse message error:", err)
