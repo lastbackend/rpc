@@ -40,7 +40,7 @@ Handlers and Upstreams examples:
 package rpc
 
 // Register application in RPC
-func Register(name string, uuid string, token string) (RPC, error) {
+func Register(name string, uuid string, token string) (*RPC, error) {
 
 	var rpc RPC
 
@@ -59,7 +59,7 @@ func Register(name string, uuid string, token string) (RPC, error) {
 
 	rpc.handlers = make(map[string]Handler)
 	rpc.upstreams = make(map[string]Upstream)
-	return rpc, nil
+	return &rpc, nil
 }
 
 // SetURI - set URI connection
